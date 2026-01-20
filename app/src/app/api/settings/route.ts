@@ -60,7 +60,7 @@ export async function GET() {
                 url: haUrl,
                 accessToken: result.accessToken,
                 refreshToken: result.refreshToken || null,
-                expiresAt: null,
+                expiresAt: result.expiresAt || null,
               },
             });
             console.log('HA onboarding complete, service account credentials stored');

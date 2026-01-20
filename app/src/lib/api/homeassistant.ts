@@ -126,6 +126,7 @@ export async function completeHAOnboarding(baseUrl: string): Promise<{
   success: boolean;
   accessToken?: string;
   refreshToken?: string;
+  expiresAt?: Date | null;
   servicePassword?: string;
   error?: string;
 }> {
@@ -218,7 +219,11 @@ export async function completeHAOnboarding(baseUrl: string): Promise<{
     console.log('Integration done');
 
     console.log('HA onboarding completed successfully!');
-    return { success: true, accessToken, refreshToken, servicePassword };
+    // Calculate token expiry (HA tokens typically expire in 30 min)
+    const expiresAt = tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000)
+      : null;
+    return { success: true, accessToken, refreshToken, expiresAt, servicePassword };
   } catch (err) {
     console.error('Error during HA onboarding:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
@@ -297,12 +302,9 @@ export class HomeAssistantClient {
   }
 
   /**
-   * Refresh the access token if expired (only for OAuth mode)
+   * Refresh the access token if expired
    */
   private async ensureValidToken(): Promise<void> {
-    // In embedded mode, no token needed
-    if (this.embeddedMode) return;
-
     // If no expiry set or not expired, token is valid
     if (!this.expiresAt || new Date() < this.expiresAt) {
       return;
@@ -355,7 +357,7 @@ export class HomeAssistantClient {
       ...options.headers as Record<string, string>,
     };
 
-    // Only add auth header if we have a token (OAuth mode)
+    // Add auth header if we have a token
     if (this.accessToken) {
       headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
@@ -378,12 +380,16 @@ export class HomeAssistantClient {
    */
   async checkConnection(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/`, {
-        headers: this.accessToken ? { 'Authorization': `Bearer ${this.accessToken}` } : {},
-      });
+      // Ensure token is fresh before checking
+      await this.ensureValidToken();
+
+      const headers: Record<string, string> = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/`, { headers });
       console.log(`HA connection check to ${this.baseUrl}/api/ - status: ${response.status}`);
-      // HA returns 401 if auth required, 200 if accessible
-      // With trusted networks, we might get 200 without a token
       return response.ok;
     } catch (err) {
       console.error(`HA connection check failed:`, err);
@@ -626,6 +632,7 @@ export class HomeAssistantClient {
       'Content-Type': 'application/json',
     };
 
+    // Add auth header if we have a token
     if (this.accessToken) {
       headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
