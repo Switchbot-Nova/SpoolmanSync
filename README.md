@@ -57,11 +57,15 @@ Go to http://localhost:3000 in your browser.
 5. Select your printer from the list
 6. Click **Continue**
 
+https://github.com/user-attachments/assets/51e006da-cdae-4db8-b261-bd622802ff62
+
 ### Step 4: Connect Spoolman
 
 1. In **Settings**, scroll to the Spoolman section
 2. Enter your Spoolman URL (e.g., `http://127.0.0.1:7912`)
 3. Click **Connect**
+
+https://github.com/user-attachments/assets/47153c92-0a99-4749-8519-a24f1baad8a6
 
 ### Step 5: Set Up Automations
 
@@ -70,6 +74,8 @@ This enables automatic tray change detection.
 1. Go to **Automations** in the navigation
 2. Click **Configure Automations**
 3. The automations are automatically created in the embedded Home Assistant
+
+https://github.com/user-attachments/assets/4019ee5d-b2bb-4ae9-9c52-f581ec43f8c5
 
 ### You're Done!
 
@@ -99,6 +105,8 @@ Go to http://localhost:3000 in your browser.
 4. You'll be redirected to Home Assistant to authorize SpoolmanSync
 5. Enter you Home Assistant credentials and click "Log in"
 
+https://github.com/user-attachments/assets/1f711fd2-28cd-41b5-8a41-06e991baec83
+
 Your printers should automatically appear on the dashboard (discovered from ha-bambulab).
 
 ### Step 4: Connect Spoolman
@@ -106,6 +114,8 @@ Your printers should automatically appear on the dashboard (discovered from ha-b
 1. In **Settings**, scroll to the Spoolman section
 2. Enter your Spoolman URL (e.g., `http://127.0.0.1:7912`)
 3. Click **Connect**
+
+https://github.com/user-attachments/assets/915a321a-a6a8-4f81-85ae-5e7f6121f536
 
 ### Step 5: Set Up Automations
 
@@ -119,6 +129,8 @@ This enables automatic spool tracking and filament usage monitoring.
    - **automations.yaml** - Copy and add to your Home Assistant's `automations.yaml`
 5. Restart Home Assistant
 6. Return to SpoolmanSync and click **Mark as Configured**
+
+https://github.com/user-attachments/assets/06f0c220-e30a-4d19-9960-d8d6c10ae257
 
 ### You're Done!
 
