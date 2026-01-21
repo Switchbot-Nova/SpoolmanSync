@@ -2,6 +2,7 @@
 CREATE TABLE "HAConnection" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "url" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL DEFAULT 'http://spoolmansync',
     "accessToken" TEXT NOT NULL,
     "refreshToken" TEXT,
     "expiresAt" DATETIME,
