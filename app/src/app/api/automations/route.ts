@@ -36,7 +36,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Home Assistant not configured' }, { status: 400 });
     }
 
-    const haClient = new HomeAssistantClient(haConnection.url, haConnection.accessToken);
+    const haClient = new HomeAssistantClient(
+      haConnection.url,
+      haConnection.accessToken,
+      haConnection.refreshToken,
+      haConnection.expiresAt,
+      isEmbeddedMode(),
+      haConnection.clientId
+    );
 
     if (action === 'discover') {
       // Discover all printers and trays, return automation config
@@ -113,7 +120,8 @@ export async function POST(request: NextRequest) {
         storedConnection.accessToken,
         storedConnection.refreshToken,
         storedConnection.expiresAt,
-        true
+        true,
+        storedConnection.clientId
       );
 
       // Discover printers
@@ -159,12 +167,15 @@ export async function POST(request: NextRequest) {
         await fs.writeFile(configPath, mergedConfig, 'utf-8');
         console.log('Wrote configuration.yaml');
 
-        // Reload HA automations via API
+        // Restart HA to load all new configuration
+        // YAML-configured entities (input_number, utility_meter, template, rest_command)
+        // require a restart to be created - automation.reload is not sufficient
         try {
-          await haClient.callService('automation', 'reload', {});
-          console.log('Reloaded automations');
-        } catch (reloadError) {
-          console.error('Failed to reload automations:', reloadError);
+          console.log('Restarting Home Assistant to load new configuration...');
+          await haClient.callService('homeassistant', 'restart', {});
+          console.log('HA restart initiated');
+        } catch (restartError) {
+          console.error('Failed to restart HA:', restartError);
           // Not fatal - user can restart HA manually
         }
 
@@ -207,7 +218,7 @@ export async function POST(request: NextRequest) {
           success: true,
           printerCount: config.printerCount,
           trayCount: config.trayCount,
-          message: 'Home Assistant configured successfully. Automations are now active.',
+          message: 'Home Assistant configured successfully. HA is restarting to apply changes - this may take a minute.',
         });
 
       } catch (writeError) {

@@ -205,7 +205,7 @@ export async function completeHAOnboarding(baseUrl: string): Promise<{
     console.log('Analytics done');
 
     // Step 5: Complete integration step
-    // redirect_uri is required by HA's schema even though we don't use it for automated onboarding
+    // client_id and redirect_uri are required by HA's schema
     await fetch(`${baseUrl}/api/onboarding/integration`, {
       method: 'POST',
       headers: {
@@ -213,6 +213,7 @@ export async function completeHAOnboarding(baseUrl: string): Promise<{
         'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
+        client_id: 'http://spoolmansync',
         redirect_uri: `${baseUrl}/`,
       }),
     });
@@ -232,6 +233,7 @@ export async function completeHAOnboarding(baseUrl: string): Promise<{
 
 export class HomeAssistantClient {
   private baseUrl: string;
+  private clientId: string;
   private accessToken: string | null;
   private refreshToken: string | null;
   private expiresAt: Date | null;
@@ -242,9 +244,11 @@ export class HomeAssistantClient {
     accessToken?: string | null,
     refreshToken?: string | null,
     expiresAt?: Date | null,
-    embeddedMode: boolean = false
+    embeddedMode: boolean = false,
+    clientId: string = 'http://spoolmansync'
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.clientId = clientId;
     this.accessToken = accessToken || null;
     this.refreshToken = refreshToken || null;
     this.expiresAt = expiresAt || null;
@@ -281,7 +285,8 @@ export class HomeAssistantClient {
           connection.accessToken,
           connection.refreshToken,
           connection.expiresAt,
-          true
+          true,
+          connection.clientId
         );
       }
       // No stored connection - auto-onboarding hasn't completed yet
@@ -297,7 +302,8 @@ export class HomeAssistantClient {
       connection.accessToken,
       connection.refreshToken,
       connection.expiresAt,
-      false
+      false,
+      connection.clientId
     );
   }
 
@@ -316,6 +322,7 @@ export class HomeAssistantClient {
     }
 
     // Refresh the token
+    // Note: HA requires client_id for refresh token requests (must match original OAuth client_id)
     const response = await fetch(`${this.baseUrl}/auth/token`, {
       method: 'POST',
       headers: {
@@ -324,6 +331,7 @@ export class HomeAssistantClient {
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: this.refreshToken,
+        client_id: this.clientId,
       }),
     });
 

@@ -18,16 +18,17 @@ export async function GET(request: NextRequest) {
   // Generate a random state for CSRF protection
   const state = crypto.randomUUID();
 
-  // Store the state and HA URL temporarily for the callback
-  await prisma.settings.upsert({
-    where: { key: 'oauth_state' },
-    update: { value: JSON.stringify({ state, haUrl }) },
-    create: { key: 'oauth_state', value: JSON.stringify({ state, haUrl }) },
-  });
-
   // Get the callback URL (where HA will redirect after auth)
   const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
   const redirectUri = `${baseUrl}/api/auth/ha/callback`;
+
+  // Store the state, HA URL, and clientId temporarily for the callback
+  // Storing clientId ensures we use the exact same value for token exchange
+  await prisma.settings.upsert({
+    where: { key: 'oauth_state' },
+    update: { value: JSON.stringify({ state, haUrl, clientId: baseUrl }) },
+    create: { key: 'oauth_state', value: JSON.stringify({ state, haUrl, clientId: baseUrl }) },
+  });
 
   // Build the authorization URL
   // Home Assistant uses a standard OAuth2 flow

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/settings?error=invalid_state', request.url));
     }
 
-    const { state: storedState, haUrl: rawHaUrl } = JSON.parse(storedData.value);
+    const { state: storedState, haUrl: rawHaUrl, clientId } = JSON.parse(storedData.value);
     // Remove trailing slashes to prevent double-slash URLs
     const haUrl = rawHaUrl.replace(/\/+$/, '');
 
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     await prisma.settings.delete({ where: { key: 'oauth_state' } });
 
     // Exchange the authorization code for tokens
-    const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
+    // Use the stored clientId to ensure it matches what was used in the auth request
     const tokenResponse = await fetch(`${haUrl}/auth/token`, {
       method: 'POST',
       headers: {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        client_id: baseUrl,
+        client_id: clientId,
       }),
     });
 
@@ -62,11 +62,12 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + tokens.expires_in * 1000)
       : null;
 
-    // Store the connection
+    // Store the connection (including clientId used for OAuth, needed for token refresh)
     await prisma.hAConnection.deleteMany();
     await prisma.hAConnection.create({
       data: {
         url: haUrl,
+        clientId,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token || null,
         expiresAt,

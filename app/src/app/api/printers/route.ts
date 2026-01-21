@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { HomeAssistantClient } from '@/lib/api/homeassistant';
+import { HomeAssistantClient, isEmbeddedMode } from '@/lib/api/homeassistant';
 import { SpoolmanClient } from '@/lib/api/spoolman';
 
 export async function GET() {
@@ -12,7 +12,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Home Assistant not configured' }, { status: 400 });
     }
 
-    const haClient = new HomeAssistantClient(haConnection.url, haConnection.accessToken);
+    const haClient = new HomeAssistantClient(
+      haConnection.url,
+      haConnection.accessToken,
+      haConnection.refreshToken,
+      haConnection.expiresAt,
+      isEmbeddedMode(),
+      haConnection.clientId
+    );
     const printers = await haClient.discoverPrinters();
 
     // If Spoolman is configured, enrich with spool data

@@ -14,6 +14,7 @@ datasource db {
 model HAConnection {
   id           String   @id @default(cuid())
   url          String
+  clientId     String   @default("http://spoolmansync") // OAuth client_id used for auth
   accessToken  String   // Service account access token (used by app)
   refreshToken String?  // Service account refresh token
   expiresAt    DateTime?

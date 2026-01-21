@@ -31,7 +31,8 @@ export async function GET() {
           storedConnection.accessToken,
           storedConnection.refreshToken,
           storedConnection.expiresAt,
-          true
+          true,
+          storedConnection.clientId
         );
         haConnected = await client.checkConnection();
         console.log('Embedded HA connection with stored token:', haConnected ? 'success' : 'failed');
@@ -58,6 +59,7 @@ export async function GET() {
             await prisma.hAConnection.create({
               data: {
                 url: haUrl,
+                clientId: 'http://spoolmansync',
                 accessToken: result.accessToken,
                 refreshToken: result.refreshToken || null,
                 expiresAt: result.expiresAt || null,
