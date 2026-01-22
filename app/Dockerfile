@@ -37,16 +37,12 @@ ENV NODE_ENV=production
 # Install runtime dependencies for better-sqlite3
 RUN apk add --no-cache libc6-compat
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
 # Set up the data folder for SQLite
 RUN mkdir -p /data
-RUN chown nextjs:nodejs /data
 
 # Copy standalone build
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 # Copy Prisma schema and config for migrations
 COPY --from=builder /app/prisma ./prisma
@@ -58,10 +54,8 @@ COPY --from=builder /app/src/generated ./src/generated
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy entrypoint script
-COPY --chown=nextjs:nodejs entrypoint.sh ./entrypoint.sh
+COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
-
-USER nextjs
 
 EXPOSE 3000
 
