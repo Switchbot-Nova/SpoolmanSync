@@ -2,15 +2,43 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
 /**
+ * Get the base URL for redirects from the request.
+ * This handles various scenarios including reverse proxies and Docker networking.
+ */
+function getBaseUrl(request: NextRequest): string {
+  // Explicit override always wins
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL;
+  }
+
+  // Check for forwarded host (reverse proxy scenario)
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const host = forwardedHost?.split(',')[0].trim() || request.headers.get('host');
+
+  if (!host) {
+    // Fallback to nextUrl.origin (shouldn't happen in practice)
+    console.warn('[OAuth Callback] No host header found, falling back to nextUrl.origin');
+    return request.nextUrl.origin;
+  }
+
+  // Determine protocol (check for reverse proxy HTTPS termination)
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const protocol = forwardedProto?.split(',')[0].trim() || 'http';
+
+  return `${protocol}://${host}`;
+}
+
+/**
  * OAuth2 callback from Home Assistant
  * GET /api/auth/ha/callback?code=...&state=...
  */
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
+  const baseUrl = getBaseUrl(request);
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL('/settings?error=missing_params', request.url));
+    return NextResponse.redirect(new URL('/settings?error=missing_params', baseUrl));
   }
 
   try {
@@ -20,7 +48,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!storedData) {
-      return NextResponse.redirect(new URL('/settings?error=invalid_state', request.url));
+      return NextResponse.redirect(new URL('/settings?error=invalid_state', baseUrl));
     }
 
     const { state: storedState, haUrl: rawHaUrl, clientId } = JSON.parse(storedData.value);
@@ -29,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     // Verify CSRF token
     if (state !== storedState) {
-      return NextResponse.redirect(new URL('/settings?error=invalid_state', request.url));
+      return NextResponse.redirect(new URL('/settings?error=invalid_state', baseUrl));
     }
 
     // Clean up the stored state
@@ -52,7 +80,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
       console.error('Token exchange failed:', error);
-      return NextResponse.redirect(new URL('/settings?error=token_exchange_failed', request.url));
+      return NextResponse.redirect(new URL('/settings?error=token_exchange_failed', baseUrl));
     }
 
     const tokens = await tokenResponse.json();
@@ -82,9 +110,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(new URL('/settings?success=ha_connected', request.url));
+    return NextResponse.redirect(new URL('/settings?success=ha_connected', baseUrl));
   } catch (error) {
     console.error('OAuth callback error:', error);
-    return NextResponse.redirect(new URL('/settings?error=oauth_failed', request.url));
+    return NextResponse.redirect(new URL('/settings?error=oauth_failed', baseUrl));
   }
 }

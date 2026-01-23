@@ -39,6 +39,17 @@ export interface UpdateTrayPayload {
   active_tray_id: string;
 }
 
+export interface ExtraField {
+  key: string;
+  name: string;
+  field_type: string;
+  unit?: string;
+  default_value?: string;
+  choices?: string[];
+  multi_choice?: boolean;
+  order?: number;
+}
+
 export class SpoolmanClient {
   private baseUrl: string;
 
@@ -179,5 +190,54 @@ export class SpoolmanClient {
    */
   async getFilaments(): Promise<Filament[]> {
     return this.fetch('/filament');
+  }
+
+  /**
+   * Get all extra fields for spools
+   */
+  async getSpoolExtraFields(): Promise<ExtraField[]> {
+    return this.fetch('/field/spool');
+  }
+
+  /**
+   * Create or update an extra field for spools
+   */
+  async createSpoolExtraField(key: string, name: string, fieldType: string = 'text'): Promise<ExtraField[]> {
+    return this.fetch(`/field/spool/${key}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        field_type: fieldType,
+      }),
+    });
+  }
+
+  /**
+   * Ensure all required extra fields exist in Spoolman
+   * This is required for SpoolmanSync to track tray assignments and barcode scanning
+   */
+  async ensureRequiredFieldsExist(): Promise<void> {
+    const requiredFields = [
+      { key: 'active_tray', name: 'active_tray', description: 'tray assignments' },
+      { key: 'barcode', name: 'barcode', description: 'barcode/QR code scanning' },
+    ];
+
+    try {
+      const existingFields = await this.getSpoolExtraFields();
+      const existingKeys = new Set(existingFields.map(f => f.key));
+
+      for (const field of requiredFields) {
+        if (!existingKeys.has(field.key)) {
+          console.log(`[SpoolmanSync] Creating ${field.key} extra field in Spoolman (for ${field.description})...`);
+          await this.createSpoolExtraField(field.key, field.name, 'text');
+          console.log(`[SpoolmanSync] ${field.key} extra field created successfully`);
+        } else {
+          console.log(`[SpoolmanSync] ${field.key} extra field already exists`);
+        }
+      }
+    } catch (error) {
+      console.error('[SpoolmanSync] Failed to ensure required fields exist:', error);
+      throw new Error('Failed to configure Spoolman extra fields. Please ensure Spoolman is accessible and try again.');
+    }
   }
 }

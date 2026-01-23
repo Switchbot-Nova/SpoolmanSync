@@ -166,6 +166,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Cannot connect to Spoolman' }, { status: 400 });
       }
 
+      // Ensure required extra fields exist in Spoolman
+      // This includes active_tray (for tray assignments) and barcode (for QR scanning)
+      try {
+        await client.ensureRequiredFieldsExist();
+      } catch (error) {
+        console.error('Failed to ensure required fields:', error);
+        return NextResponse.json({
+          error: 'Connected to Spoolman but failed to configure required extra fields. Please check Spoolman logs.',
+        }, { status: 500 });
+      }
+
       // Upsert connection
       await prisma.spoolmanConnection.deleteMany();
       await prisma.spoolmanConnection.create({
