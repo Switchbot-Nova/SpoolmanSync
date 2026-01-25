@@ -1,7 +1,76 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { HomeAssistantClient, isEmbeddedMode } from '@/lib/api/homeassistant';
-import { SpoolmanClient } from '@/lib/api/spoolman';
+import { HomeAssistantClient, isEmbeddedMode, HATray } from '@/lib/api/homeassistant';
+import { SpoolmanClient, Spool } from '@/lib/api/spoolman';
+
+interface MismatchInfo {
+  type: 'material' | 'color' | 'both';
+  printerReports: {
+    material?: string;
+    color?: string;
+  };
+  spoolmanHas: {
+    material: string;
+    color: string;
+  };
+  message: string;
+}
+
+/**
+ * Detect if the printer's RFID data doesn't match the assigned spool
+ * This helps users catch mistakes before printing with the wrong filament
+ *
+ * Compares material type and hex color code. The RFID color includes an alpha
+ * channel (e.g., "#042f56ff") while Spoolman uses 6-char hex (e.g., "#042f56"),
+ * so we compare only the first 6 hex characters.
+ *
+ * Note: Only works for Bambu spools with RFID tags. Non-Bambu spools
+ * won't have printer-reported data to compare against.
+ */
+function detectTrayMismatch(tray: HATray, assignedSpool: Spool): MismatchInfo | null {
+  // If the tray has no material reported by printer, can't detect mismatch
+  // This happens with non-Bambu spools (no RFID) or empty trays
+  const trayName = tray.name?.toLowerCase().trim() || '';
+  if (!trayName || trayName === 'empty') {
+    return null;
+  }
+
+  const printerMaterial = tray.material?.toUpperCase() || '';
+  const spoolMaterial = assignedSpool.filament.material.toUpperCase();
+
+  // Get hex colors - RFID may have alpha channel (8 chars), Spoolman has 6 chars
+  // Compare only first 6 characters (RGB, ignore alpha)
+  const rfidColor = tray.color?.replace('#', '').toLowerCase().substring(0, 6) || '';
+  const spoolColor = assignedSpool.filament.color_hex.toLowerCase().substring(0, 6);
+
+  // Check for material mismatch
+  const materialMismatch = printerMaterial && spoolMaterial && printerMaterial !== spoolMaterial;
+
+  // Check for color mismatch (exact match on first 6 hex chars)
+  const colorMismatch = rfidColor && spoolColor && rfidColor !== spoolColor;
+
+  if (!materialMismatch && !colorMismatch) {
+    return null;
+  }
+
+  // Build mismatch info
+  const mismatchType: 'material' | 'color' | 'both' =
+    materialMismatch && colorMismatch ? 'both' :
+    materialMismatch ? 'material' : 'color';
+
+  return {
+    type: mismatchType,
+    printerReports: {
+      material: tray.material,
+      color: `#${rfidColor}`,
+    },
+    spoolmanHas: {
+      material: assignedSpool.filament.material,
+      color: `#${spoolColor}`,
+    },
+    message: `Mismatch detected: ${mismatchType}`,
+  };
+}
 
 export async function GET() {
   try {
@@ -42,20 +111,32 @@ export async function GET() {
         }
       }
 
-      // Enrich printer data with spool info
+      // Enrich printer data with spool info and mismatch detection
       for (const printer of printers) {
         for (const ams of printer.ams_units) {
           for (const tray of ams.trays) {
             const assignedSpool = traySpoolMap.get(tray.entity_id);
+            const trayRecord = tray as unknown as Record<string, unknown>;
+
             if (assignedSpool) {
-              (tray as unknown as Record<string, unknown>).assigned_spool = assignedSpool;
+              trayRecord.assigned_spool = assignedSpool;
+
+              // Mismatch detection: compare printer's RFID data with assigned spool
+              // Only meaningful for Bambu spools with RFID tags
+              const mismatch = detectTrayMismatch(tray, assignedSpool);
+              if (mismatch) {
+                trayRecord.mismatch = mismatch;
+              }
             }
           }
         }
         if (printer.external_spool) {
           const assignedSpool = traySpoolMap.get(printer.external_spool.entity_id);
           if (assignedSpool) {
-            (printer.external_spool as unknown as Record<string, unknown>).assigned_spool = assignedSpool;
+            const extRecord = printer.external_spool as unknown as Record<string, unknown>;
+            extRecord.assigned_spool = assignedSpool;
+
+            // External spool doesn't have RFID reader, so no mismatch detection
           }
         }
       }

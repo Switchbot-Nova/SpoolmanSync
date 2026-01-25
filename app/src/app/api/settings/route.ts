@@ -8,6 +8,7 @@ import {
   checkHAOnboardingStatus,
   completeHAOnboarding,
 } from '@/lib/api/homeassistant';
+import { createActivityLog } from '@/lib/activity-log';
 
 export async function GET() {
   try {
@@ -184,11 +185,9 @@ export async function POST(request: NextRequest) {
       });
 
       // Log activity
-      await prisma.activityLog.create({
-        data: {
-          type: 'connection',
-          message: 'Spoolman connected successfully',
-        },
+      await createActivityLog({
+        type: 'connection',
+        message: 'Spoolman connected successfully',
       });
 
       return NextResponse.json({ success: true });
@@ -235,11 +234,9 @@ export async function DELETE(request: NextRequest) {
       await prisma.hAConnection.deleteMany();
 
       // Log activity
-      await prisma.activityLog.create({
-        data: {
-          type: 'connection',
-          message: 'Home Assistant disconnected',
-        },
+      await createActivityLog({
+        type: 'connection',
+        message: 'Home Assistant disconnected',
       });
 
       return NextResponse.json({ success: true });
@@ -249,11 +246,9 @@ export async function DELETE(request: NextRequest) {
       await prisma.spoolmanConnection.deleteMany();
 
       // Log activity
-      await prisma.activityLog.create({
-        data: {
-          type: 'connection',
-          message: 'Spoolman disconnected',
-        },
+      await createActivityLog({
+        type: 'connection',
+        message: 'Spoolman disconnected',
       });
 
       return NextResponse.json({ success: true });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { createActivityLog } from '@/lib/activity-log';
 
 /**
  * Get the base URL for redirects from the request.
@@ -103,11 +104,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Log activity
-    await prisma.activityLog.create({
-      data: {
-        type: 'connection',
-        message: 'Home Assistant connected via OAuth',
-      },
+    await createActivityLog({
+      type: 'connection',
+      message: 'Home Assistant connected via OAuth',
     });
 
     return NextResponse.redirect(new URL('/settings?success=ha_connected', baseUrl));

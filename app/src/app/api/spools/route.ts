@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { SpoolmanClient } from '@/lib/api/spoolman';
+import { createActivityLog } from '@/lib/activity-log';
 
 export async function GET() {
   try {
@@ -38,12 +39,10 @@ export async function POST(request: NextRequest) {
     const updatedSpool = await client.assignSpoolToTray(spoolId, trayId);
 
     // Log activity
-    await prisma.activityLog.create({
-      data: {
-        type: 'spool_change',
-        message: `Assigned spool #${spoolId} to tray ${trayId}`,
-        details: JSON.stringify({ spoolId, trayId }),
-      },
+    await createActivityLog({
+      type: 'spool_change',
+      message: `Assigned spool #${spoolId} to tray ${trayId}`,
+      details: { spoolId, trayId },
     });
 
     return NextResponse.json({ spool: updatedSpool });
@@ -68,12 +67,10 @@ export async function DELETE(request: NextRequest) {
     const updatedSpool = await client.unassignSpoolFromTray(spoolId);
 
     // Log activity
-    await prisma.activityLog.create({
-      data: {
-        type: 'spool_change',
-        message: `Unassigned spool #${spoolId} from tray`,
-        details: JSON.stringify({ spoolId }),
-      },
+    await createActivityLog({
+      type: 'spool_change',
+      message: `Unassigned spool #${spoolId} from tray`,
+      details: { spoolId },
     });
 
     return NextResponse.json({ spool: updatedSpool });

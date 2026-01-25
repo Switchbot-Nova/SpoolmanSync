@@ -40,6 +40,7 @@ export interface HAAMS {
 export interface HATray {
   entity_id: string;
   tray_number: number;
+  name?: string;  // Filament name from RFID (e.g., "Matte Dark Blue")
   color?: string;
   material?: string;
   tag_uid?: string;
@@ -520,6 +521,7 @@ export class HomeAssistantClient {
             ams.trays.push({
               entity_id: bestTray.entity_id,
               tray_number: trayNum,
+              name: bestTray.attributes.name as string,  // Filament name from RFID
               color: bestTray.attributes.color as string,
               material: bestTray.attributes.type as string,
               tag_uid: bestTray.attributes.tag_uid as string,
@@ -556,6 +558,7 @@ export class HomeAssistantClient {
         printer.external_spool = {
           entity_id: bestExt.entity_id,
           tray_number: 0,
+          name: bestExt.attributes.name as string,
           color: bestExt.attributes.color as string,
           material: bestExt.attributes.type as string,
           tag_uid: bestExt.attributes.tag_uid as string,
@@ -804,6 +807,7 @@ export interface ConfigFlowResult {
   title?: string;
   result?: ConfigEntry;
   menu_options?: string[];
+  reason?: string; // Abort reason when type is 'abort'
 }
 
 export interface ConfigFlowSchema {
