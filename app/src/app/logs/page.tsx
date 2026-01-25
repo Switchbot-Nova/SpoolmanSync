@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Nav } from '@/components/nav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,9 +17,51 @@ interface ActivityLog {
 export default function LogsPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     fetchLogs();
+
+    // Set up SSE connection for real-time updates
+    const eventSource = new EventSource('/api/events');
+    eventSourceRef.current = eventSource;
+
+    eventSource.onopen = () => {
+      setConnected(true);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.eventType === 'activity_log') {
+          // Prepend new log to the list
+          setLogs((prevLogs) => {
+            // Avoid duplicates
+            if (prevLogs.some((log) => log.id === data.id)) {
+              return prevLogs;
+            }
+            return [{
+              id: data.id,
+              type: data.type,
+              message: data.message,
+              details: data.details,
+              createdAt: data.createdAt,
+            }, ...prevLogs].slice(0, 100); // Keep max 100 logs
+          });
+        }
+      } catch {
+        // Ignore parse errors (heartbeats, etc.)
+      }
+    };
+
+    eventSource.onerror = () => {
+      setConnected(false);
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const fetchLogs = async () => {
@@ -71,7 +113,15 @@ export default function LogsPage() {
       <Nav />
       <main className="w-full max-w-7xl mx-auto py-6 px-3 sm:px-4 md:px-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Activity Logs</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">Activity Logs</h1>
+            {connected && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </span>
+            )}
+          </div>
           <Button variant="outline" onClick={fetchLogs}>
             Refresh
           </Button>

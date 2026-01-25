@@ -1,4 +1,4 @@
-import { spoolEvents, SPOOL_UPDATED, SpoolUpdateEvent } from '@/lib/events';
+import { spoolEvents, SPOOL_UPDATED, ACTIVITY_LOG_CREATED, SpoolUpdateEvent, ActivityLogEvent } from '@/lib/events';
 
 /**
  * Server-Sent Events endpoint for real-time dashboard updates
@@ -6,6 +6,7 @@ import { spoolEvents, SPOOL_UPDATED, SpoolUpdateEvent } from '@/lib/events';
  * Clients connect to this endpoint and receive updates when:
  * - Spool usage is deducted (from webhook)
  * - Spools are assigned/unassigned to trays
+ * - Activity logs are created
  */
 export async function GET(): Promise<Response> {
   const encoder = new TextEncoder();
@@ -17,10 +18,21 @@ export async function GET(): Promise<Response> {
       controller.enqueue(encoder.encode(connectMessage));
 
       // Subscribe to spool update events
-      const unsubscribe = spoolEvents.on(SPOOL_UPDATED, (data: unknown) => {
+      const unsubscribeSpool = spoolEvents.on(SPOOL_UPDATED, (data: unknown) => {
         try {
           const event = data as SpoolUpdateEvent;
           const message = `data: ${JSON.stringify(event)}\n\n`;
+          controller.enqueue(encoder.encode(message));
+        } catch {
+          // Client disconnected, will be cleaned up
+        }
+      });
+
+      // Subscribe to activity log events
+      const unsubscribeLog = spoolEvents.on(ACTIVITY_LOG_CREATED, (data: unknown) => {
+        try {
+          const event = data as ActivityLogEvent;
+          const message = `data: ${JSON.stringify({ ...event, eventType: 'activity_log' })}\n\n`;
           controller.enqueue(encoder.encode(message));
         } catch {
           // Client disconnected, will be cleaned up
@@ -42,7 +54,8 @@ export async function GET(): Promise<Response> {
       // Note: The controller doesn't have a direct close event, but the stream
       // will be garbage collected when the client disconnects
       const cleanup = () => {
-        unsubscribe();
+        unsubscribeSpool();
+        unsubscribeLog();
         clearInterval(heartbeatInterval);
       };
 

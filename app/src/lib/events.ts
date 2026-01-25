@@ -39,13 +39,22 @@ export const spoolEvents = new EventEmitter();
 
 // Event types
 export const SPOOL_UPDATED = 'spool_updated';
+export const ACTIVITY_LOG_CREATED = 'activity_log_created';
 
 export interface SpoolUpdateEvent {
-  type: 'usage' | 'assignment' | 'unassignment';
-  spoolId: number;
+  type: 'usage' | 'assign' | 'unassign' | 'tray_change';
+  spoolId?: number;
   spoolName?: string;
   deducted?: number;
   newWeight?: number;
   trayId?: string;
   timestamp: number;
+}
+
+export interface ActivityLogEvent {
+  id: string;
+  type: string;
+  message: string;
+  details: string | null;
+  createdAt: string;
 }
