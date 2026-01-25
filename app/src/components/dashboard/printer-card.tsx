@@ -5,8 +5,22 @@ import { TraySlot } from './tray-slot';
 import type { HATray } from '@/lib/api/homeassistant';
 import type { Spool } from '@/lib/api/spoolman';
 
+interface MismatchInfo {
+  type: 'material' | 'color' | 'both';
+  printerReports: {
+    material?: string;
+    color?: string;
+  };
+  spoolmanHas: {
+    material: string;
+    color: string;
+  };
+  message: string;
+}
+
 interface TrayWithSpool extends HATray {
   assigned_spool?: Spool;
+  mismatch?: MismatchInfo;
 }
 
 interface AMSWithSpools {
@@ -54,6 +68,7 @@ export function PrinterCard({ printer, spools, onSpoolAssign, onSpoolUnassign }:
                   spools={spools}
                   onAssign={(spoolId) => onSpoolAssign(tray.entity_id, spoolId)}
                   onUnassign={onSpoolUnassign}
+                  mismatch={tray.mismatch}
                 />
               ))}
             </div>

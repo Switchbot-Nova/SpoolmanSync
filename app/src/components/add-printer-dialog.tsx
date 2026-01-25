@@ -37,6 +37,7 @@ interface ConfigFlowResult {
   description_placeholders?: Record<string, string>;
   title?: string;
   menu_options?: string[];
+  reason?: string; // Abort reason when type is 'abort'
 }
 
 interface AddPrinterDialogProps {
@@ -191,6 +192,17 @@ export function AddPrinterDialog({ open, onOpenChange, onSuccess }: AddPrinterDi
         }
       }
 
+      // Handle immediate abort (e.g., no printers found right after login)
+      if (result.type === 'abort') {
+        const abortMessage = getAbortMessage(result.reason, mode);
+        toast.error(abortMessage.title, {
+          description: abortMessage.description,
+          duration: 10000,
+        });
+        resetDialog();
+        return;
+      }
+
       setFlowState(result);
       setFormData(getDefaultFormData(result.data_schema));
       setStep('flow');
@@ -310,7 +322,12 @@ export function AddPrinterDialog({ open, onOpenChange, onSuccess }: AddPrinterDi
         resetDialog();
         onOpenChange(false);
       } else if (result.type === 'abort') {
-        toast.error('Setup was aborted');
+        // Show helpful error message based on abort reason
+        const abortMessage = getAbortMessage(result.reason, connectionMode);
+        toast.error(abortMessage.title, {
+          description: abortMessage.description,
+          duration: 10000, // Show for longer since it contains troubleshooting info
+        });
         handleClose();
       } else if (result.type === 'form') {
         // Check if this is a transition to verification code form
@@ -802,4 +819,69 @@ function getStepDescription(stepId?: string, mode?: ConnectionMode): string {
     return 'Enter your printer\'s network details and access code (found in printer settings)';
   }
   return 'Configure your printer connection';
+}
+
+function getAbortMessage(reason?: string, mode?: ConnectionMode): { title: string; description: string } {
+  // Common abort reasons from ha-bambulab integration
+  const messages: Record<string, { title: string; description: string }> = {
+    // No printers found in Bambu Cloud account
+    'no_printers': {
+      title: 'No printers found',
+      description: 'No printers were found in your Bambu Cloud account. Make sure your printer is powered on, connected to the internet, and linked to your Bambu account in Bambu Studio or Bambu Handy.',
+    },
+    // Already configured
+    'already_configured': {
+      title: 'Printer already configured',
+      description: 'This printer is already set up in Home Assistant.',
+    },
+    // Connection issues
+    'cannot_connect': {
+      title: 'Cannot connect to printer',
+      description: 'Unable to establish a connection. If using cloud mode, your printer may have limited MQTT connection slots (try restarting the printer). For LAN mode, verify the IP address and that the printer is on the same network.',
+    },
+    // Authentication failed
+    'invalid_auth': {
+      title: 'Authentication failed',
+      description: 'Invalid credentials. Please check your email and password.',
+    },
+    // Reauth required
+    'reauth_successful': {
+      title: 'Reauthentication successful',
+      description: 'Your credentials have been updated.',
+    },
+  };
+
+  // Check for specific reason
+  if (reason && messages[reason]) {
+    return messages[reason];
+  }
+
+  // Check for "no printer" type reasons (various formats from different versions)
+  if (reason && (
+    reason.toLowerCase().includes('no_printer') ||
+    reason.toLowerCase().includes('printer count') ||
+    reason.toLowerCase().includes('no printers')
+  )) {
+    return messages['no_printers'];
+  }
+
+  // Default message based on connection mode
+  if (mode === 'cloud') {
+    return {
+      title: 'Setup failed',
+      description: 'Could not complete printer setup. Please verify your Bambu Cloud account credentials and that your printer is connected to the cloud. If you recently connected via MQTT Explorer or another tool, try restarting your printer to free up connection slots.',
+    };
+  }
+
+  if (mode === 'lan') {
+    return {
+      title: 'Setup failed',
+      description: 'Could not connect to the printer via LAN. Verify the IP address, access code, and that the printer is powered on and connected to your network.',
+    };
+  }
+
+  return {
+    title: 'Setup was aborted',
+    description: reason || 'An unknown error occurred during setup.',
+  };
 }

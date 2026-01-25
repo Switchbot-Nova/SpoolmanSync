@@ -21,15 +21,29 @@ import { Badge } from '@/components/ui/badge';
 import type { HATray } from '@/lib/api/homeassistant';
 import type { Spool } from '@/lib/api/spoolman';
 
+interface MismatchInfo {
+  type: 'material' | 'color' | 'both';
+  printerReports: {
+    material?: string;
+    color?: string;
+  };
+  spoolmanHas: {
+    material: string;
+    color: string;
+  };
+  message: string;
+}
+
 interface TraySlotProps {
   tray: HATray;
   assignedSpool?: Spool;
   spools: Spool[];
   onAssign: (spoolId: number) => void;
   onUnassign?: (spoolId: number) => void;
+  mismatch?: MismatchInfo;
 }
 
-export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign }: TraySlotProps) {
+export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign, mismatch }: TraySlotProps) {
   const [open, setOpen] = useState(false);
 
   const colorHex = assignedSpool?.filament.color_hex || tray.color?.replace('#', '') || 'cccccc';
@@ -68,6 +82,19 @@ export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign }: 
               </span>
             )}
           </div>
+
+          {/* Mismatch warning banner */}
+          {mismatch && assignedSpool && (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 mb-2 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700"
+              title={`RFID: ${mismatch.printerReports.color} (${mismatch.printerReports.material}) | Assigned: ${mismatch.spoolmanHas.color} (${mismatch.spoolmanHas.material})`}
+            >
+              <span className="text-amber-600 dark:text-amber-400 text-xs">⚠️</span>
+              <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 truncate">
+                Possible wrong spool
+              </span>
+            </div>
+          )}
 
           {assignedSpool ? (
             <>
@@ -128,6 +155,50 @@ export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign }: 
             Assign Spool to {tray.tray_number === 0 ? 'External Slot' : `Tray ${tray.tray_number}`}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Mismatch warning in dialog */}
+        {mismatch && (
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-sm">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-500 mt-0.5">⚠️</span>
+              <div className="space-y-1.5">
+                <p className="font-medium text-amber-700 dark:text-amber-300">
+                  Possible wrong spool assigned
+                </p>
+                <div className="text-xs text-amber-600 dark:text-amber-400 space-y-0.5">
+                  <p>
+                    <span className="opacity-70">RFID reports:</span>{' '}
+                    {mismatch.printerReports.material || 'unknown material'}
+                    {mismatch.printerReports.color && (
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <span
+                          className="inline-block w-3 h-3 rounded-full border border-amber-400"
+                          style={{ backgroundColor: mismatch.printerReports.color }}
+                        />
+                        <span className="opacity-70">{mismatch.printerReports.color}</span>
+                      </span>
+                    )}
+                  </p>
+                  <p>
+                    <span className="opacity-70">Assigned spool:</span>{' '}
+                    {mismatch.spoolmanHas.material}
+                    <span className="inline-flex items-center gap-1 ml-1">
+                      <span
+                        className="inline-block w-3 h-3 rounded-full border border-amber-400"
+                        style={{ backgroundColor: mismatch.spoolmanHas.color }}
+                      />
+                      <span className="opacity-70">{mismatch.spoolmanHas.color}</span>
+                    </span>
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select the correct spool below.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Command className="rounded-lg border shadow-md">
           <CommandInput placeholder="Search spools..." />
           <CommandList>
