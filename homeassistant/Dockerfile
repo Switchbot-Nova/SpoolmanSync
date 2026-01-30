@@ -9,9 +9,10 @@ RUN cd /default_config/custom_components && \
     unzip hacs.zip -d hacs && \
     rm hacs.zip
 
-# Install ha-bambulab integration (latest official release)
+# Install ha-bambulab integration
+# Using v2.2.20-beta2 for tray auto-clear fix (switch back to latest after stable release)
 RUN cd /default_config/custom_components && \
-    wget -O bambu_lab.zip https://github.com/greghesp/ha-bambulab/releases/latest/download/bambu_lab.zip && \
+    wget -O bambu_lab.zip https://github.com/greghesp/ha-bambulab/releases/download/v2.2.20-beta2/bambu_lab.zip && \
     unzip bambu_lab.zip -d bambu_lab && \
     rm bambu_lab.zip
 
