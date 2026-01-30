@@ -9,8 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { AddPrinterDialog } from '@/components/add-printer-dialog';
+
+interface FilterField {
+  key: string;
+  name: string;
+  values: string[];
+  builtIn: boolean;
+}
 
 interface AdminCredentials {
   username: string;
@@ -53,6 +61,11 @@ function SettingsContent() {
   // Admin credentials state (embedded mode)
   const [showPassword, setShowPassword] = useState(false);
 
+  // Filter configuration states
+  const [filterFields, setFilterFields] = useState<FilterField[]>([]);
+  const [enabledFilters, setEnabledFilters] = useState<string[]>([]);
+  const [savingFilters, setSavingFilters] = useState(false);
+
   useEffect(() => {
     fetchSettings();
 
@@ -81,6 +94,13 @@ function SettingsContent() {
       fetchPrinters();
     }
   }, [settings?.homeassistant]);
+
+  // Fetch filter fields when Spoolman is connected
+  useEffect(() => {
+    if (settings?.spoolman) {
+      fetchFilterFields();
+    }
+  }, [settings?.spoolman]);
 
   // Auto-refresh settings when in embedded mode and waiting for HA
   useEffect(() => {
@@ -223,6 +243,51 @@ function SettingsContent() {
     } finally {
       setSaving(null);
     }
+  };
+
+  const fetchFilterFields = async () => {
+    try {
+      const res = await fetch('/api/spools/extra-fields');
+      if (res.ok) {
+        const data = await res.json();
+        setFilterFields(data.fields || []);
+        setEnabledFilters(data.filterConfig || []);
+      }
+    } catch {
+      // Silently fail - Spoolman might not be connected yet
+    }
+  };
+
+  const saveFilterConfig = async (newConfig: string[]) => {
+    setSavingFilters(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'filter_config',
+          config: newConfig,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to save filter configuration');
+      }
+
+      setEnabledFilters(newConfig);
+      toast.success('Filter settings saved');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save filter settings');
+    } finally {
+      setSavingFilters(false);
+    }
+  };
+
+  const toggleFilter = (fieldKey: string) => {
+    const newConfig = enabledFilters.includes(fieldKey)
+      ? enabledFilters.filter((k) => k !== fieldKey)
+      : [...enabledFilters, fieldKey];
+    saveFilterConfig(newConfig);
   };
 
   if (loading) {
@@ -495,6 +560,107 @@ function SettingsContent() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Spool Filter Configuration */}
+          {settings?.spoolman && (
+            <>
+              <Separator />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Spool Filter Configuration</CardTitle>
+                  <CardDescription>
+                    Choose which fields appear as filter dropdowns when assigning spools to trays.
+                    The search box always searches all fields regardless of this setting.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {filterFields.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Loading filter options...
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Built-in fields */}
+                      <div>
+                        <h4 className="text-sm font-medium mb-2 text-muted-foreground">Built-in Fields</h4>
+                        <div className="space-y-3">
+                          {filterFields.filter(f => f.builtIn).map((field) => (
+                            <div key={field.key} className="flex items-center space-x-3">
+                              <Checkbox
+                                id={`filter-${field.key}`}
+                                checked={enabledFilters.includes(field.key)}
+                                onCheckedChange={() => toggleFilter(field.key)}
+                                disabled={savingFilters}
+                              />
+                              <div className="flex-1">
+                                <Label
+                                  htmlFor={`filter-${field.key}`}
+                                  className="text-sm font-medium cursor-pointer"
+                                >
+                                  {field.name}
+                                </Label>
+                                {field.values.length > 0 ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    {field.values.length} value{field.values.length !== 1 ? 's' : ''}: {field.values.slice(0, 3).join(', ')}{field.values.length > 3 ? '...' : ''}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground italic">
+                                    No values set on any spools
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Extra fields (if any) */}
+                      {filterFields.some(f => !f.builtIn) && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2 text-muted-foreground">Custom Extra Fields</h4>
+                          <div className="space-y-3">
+                            {filterFields.filter(f => !f.builtIn).map((field) => (
+                              <div key={field.key} className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`filter-${field.key}`}
+                                  checked={enabledFilters.includes(field.key)}
+                                  onCheckedChange={() => toggleFilter(field.key)}
+                                  disabled={savingFilters}
+                                />
+                                <div className="flex-1">
+                                  <Label
+                                    htmlFor={`filter-${field.key}`}
+                                    className="text-sm font-medium cursor-pointer"
+                                  >
+                                    {field.name}
+                                  </Label>
+                                  {field.values.length > 0 ? (
+                                    <p className="text-xs text-muted-foreground">
+                                      {field.values.length} value{field.values.length !== 1 ? 's' : ''}: {field.values.slice(0, 3).join(', ')}{field.values.length > 3 ? '...' : ''}
+                                    </p>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      No values set on any spools
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {enabledFilters.length === 0 && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          No filters enabled. Only the search box will be shown.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
 
         </div>
 

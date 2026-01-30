@@ -156,7 +156,23 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, url } = body;
+    const { type, url, config } = body;
+
+    if (type === 'filter_config') {
+      // Save spool filter configuration
+      await prisma.settings.upsert({
+        where: { key: 'spool_filter_config' },
+        create: {
+          key: 'spool_filter_config',
+          value: JSON.stringify(config || []),
+        },
+        update: {
+          value: JSON.stringify(config || []),
+        },
+      });
+
+      return NextResponse.json({ success: true });
+    }
 
     if (type === 'spoolman') {
       // Validate Spoolman connection

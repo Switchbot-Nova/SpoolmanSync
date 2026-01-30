@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,8 +18,10 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
+import { SpoolFilterBar } from '@/components/dashboard/spool-filter-bar';
 import type { HATray } from '@/lib/api/homeassistant';
 import type { Spool } from '@/lib/api/spoolman';
+import { buildSpoolSearchValue, parseExtraValue } from '@/lib/api/spoolman';
 
 interface MismatchInfo {
   type: 'material' | 'color' | 'both';
@@ -34,6 +36,13 @@ interface MismatchInfo {
   message: string;
 }
 
+interface FilterField {
+  key: string;
+  name: string;
+  values: string[];
+  builtIn: boolean;
+}
+
 interface TraySlotProps {
   tray: HATray;
   assignedSpool?: Spool;
@@ -43,8 +52,86 @@ interface TraySlotProps {
   mismatch?: MismatchInfo;
 }
 
+/**
+ * Get the value of a filter field from a spool
+ */
+function getSpoolFieldValue(spool: Spool, fieldKey: string): string | null {
+  switch (fieldKey) {
+    case 'material':
+      return spool.filament.material || null;
+    case 'vendor':
+      return spool.filament.vendor?.name || null;
+    case 'location':
+      return spool.location || null;
+    case 'lot_nr':
+      return spool.lot_nr || null;
+    default:
+      // Extra field (key starts with extra_)
+      if (fieldKey.startsWith('extra_')) {
+        const extraKey = fieldKey.replace('extra_', '');
+        return parseExtraValue(spool.extra?.[extraKey]) || null;
+      }
+      return null;
+  }
+}
+
 export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign, mismatch }: TraySlotProps) {
   const [open, setOpen] = useState(false);
+  const [filters, setFilters] = useState<Record<string, string | null>>({});
+  const [enabledFields, setEnabledFields] = useState<FilterField[]>([]);
+
+  // Fetch filter fields when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetch('/api/spools/extra-fields')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.fields && data.filterConfig) {
+            // Only show fields that are enabled in filter config
+            const enabled = data.fields.filter(
+              (f: FilterField) => data.filterConfig.includes(f.key)
+            );
+            setEnabledFields(enabled);
+          }
+        })
+        .catch((err) => console.error('Failed to fetch filter fields:', err));
+    }
+  }, [open]);
+
+  // Reset filters when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFilters({});
+    }
+  }, [open]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((key: string, value: string | null) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }, []);
+
+  // Clear all filters
+  const handleClearAll = useCallback(() => {
+    setFilters({});
+  }, []);
+
+  // Filter spools based on active filters
+  const filteredSpools = useMemo(() => {
+    return spools.filter((spool) => {
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) {
+          const spoolValue = getSpoolFieldValue(spool, key);
+          if (spoolValue !== value) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+  }, [spools, filters]);
 
   const colorHex = assignedSpool?.filament.color_hex || tray.color?.replace('#', '') || 'cccccc';
   // Only show weight from Spoolman when a spool is assigned
@@ -60,6 +147,9 @@ export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign, mi
   };
 
   const trayLabel = tray.tray_number === 0 ? 'External' : `Tray ${tray.tray_number}`;
+
+  // Check if any enabled filters have values to show
+  const hasFilterOptions = enabledFields.some(f => f.values.length > 0);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -149,7 +239,7 @@ export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign, mi
           )}
         </button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
             Assign Spool to {tray.tray_number === 0 ? 'External Slot' : `Tray ${tray.tray_number}`}
@@ -200,14 +290,23 @@ export function TraySlot({ tray, assignedSpool, spools, onAssign, onUnassign, mi
         )}
 
         <Command className="rounded-lg border shadow-md">
-          <CommandInput placeholder="Search spools..." />
-          <CommandList>
-            <CommandEmpty>No spools found.</CommandEmpty>
-            <CommandGroup heading="Available Spools">
-              {spools.map((spool) => (
+          {/* Filter bar */}
+          {hasFilterOptions && (
+            <SpoolFilterBar
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearAll={handleClearAll}
+              fields={enabledFields}
+            />
+          )}
+          <CommandInput placeholder="Search spools by name, vendor, material, ID, or any field..." />
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty>No spools found matching your filters.</CommandEmpty>
+            <CommandGroup heading={`Available Spools (${filteredSpools.length})`}>
+              {filteredSpools.map((spool) => (
                 <CommandItem
                   key={spool.id}
-                  value={`${spool.id} ${spool.filament.vendor.name} ${spool.filament.material} ${spool.filament.name}`}
+                  value={buildSpoolSearchValue(spool)}
                   onSelect={() => {
                     onAssign(spool.id);
                     setOpen(false);

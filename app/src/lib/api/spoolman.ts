@@ -32,6 +32,8 @@ export interface Spool {
   extra: Record<string, string>;
   comment?: string;
   archived: boolean;
+  location?: string;
+  lot_nr?: string;
 }
 
 export interface UpdateTrayPayload {
@@ -49,6 +51,64 @@ export interface ExtraField {
   multi_choice?: boolean;
   order?: number;
 }
+
+/**
+ * Parse extra field value from JSON string
+ * Spoolman stores extra values as JSON-encoded strings
+ */
+export function parseExtraValue(value: string | undefined): string {
+  if (!value) return '';
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === 'string' ? parsed : String(parsed);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Build a searchable string from a spool object
+ * Includes all fields for full-text search
+ */
+export function buildSpoolSearchValue(spool: Spool): string {
+  const parts = [
+    spool.id.toString(),
+    spool.filament.vendor?.name,
+    spool.filament.material,
+    spool.filament.name,
+    spool.filament.color_hex,
+    spool.comment,
+    spool.location,
+    spool.lot_nr,
+    spool.registered,
+    spool.first_used,
+    spool.last_used,
+  ];
+
+  // Add all extra field values
+  if (spool.extra) {
+    for (const value of Object.values(spool.extra)) {
+      parts.push(parseExtraValue(value));
+    }
+  }
+
+  return parts.filter(Boolean).join(' ');
+}
+
+/**
+ * Built-in spool fields that can be used as filters
+ */
+export const BUILT_IN_FILTER_FIELDS = [
+  { key: 'material', name: 'Material', builtIn: true },
+  { key: 'vendor', name: 'Vendor', builtIn: true },
+  { key: 'location', name: 'Location', builtIn: true },
+  { key: 'lot_nr', name: 'Lot Number', builtIn: true },
+] as const;
+
+/**
+ * Default filters enabled for new users
+ */
+export const DEFAULT_ENABLED_FILTERS = ['material', 'vendor'];
 
 export class SpoolmanClient {
   private baseUrl: string;
