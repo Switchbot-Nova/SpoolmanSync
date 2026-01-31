@@ -43,7 +43,7 @@ export interface HATray {
   name?: string;  // Filament name from RFID (e.g., "Matte Dark Blue")
   color?: string;
   material?: string;
-  tag_uid?: string;
+  tray_uuid?: string;  // Spool serial number (unique per physical spool)
   remaining_weight?: number;
 }
 
@@ -524,7 +524,7 @@ export class HomeAssistantClient {
               name: bestTray.attributes.name as string,  // Filament name from RFID
               color: bestTray.attributes.color as string,
               material: bestTray.attributes.type as string,
-              tag_uid: bestTray.attributes.tag_uid as string,
+              tray_uuid: bestTray.attributes.tray_uuid as string,  // Spool serial number
               remaining_weight: bestTray.attributes.remain as number,
             });
           }
@@ -561,7 +561,7 @@ export class HomeAssistantClient {
           name: bestExt.attributes.name as string,
           color: bestExt.attributes.color as string,
           material: bestExt.attributes.type as string,
-          tag_uid: bestExt.attributes.tag_uid as string,
+          tray_uuid: bestExt.attributes.tray_uuid as string,  // Spool serial number
           remaining_weight: bestExt.attributes.remain as number,
         };
       }

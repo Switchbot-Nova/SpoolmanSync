@@ -150,7 +150,7 @@ function generateAutomationsYaml(prefix: string, traySuffix: string, webhookUrl:
     # Build sensor entity ID for the tray we're logging (0 = external spool, 1-4 = AMS)
     tray_sensor: "${traySensorLogic}"
     tray_weight: "{{ states('sensor.spoolmansync_filament_usage_meter') | float(0) | round(2) }}"
-    tag_uid: "{{ state_attr(tray_sensor, 'tag_uid') | default('') }}"
+    tray_uuid: "{{ state_attr(tray_sensor, 'tray_uuid') | default('') }}"
     material: "{{ state_attr(tray_sensor, 'type') | default('') }}"
     name: "{{ state_attr(tray_sensor, 'name') | default('') }}"
     color: "{{ state_attr(tray_sensor, 'color') | default('') }}"
@@ -180,13 +180,13 @@ function generateAutomationsYaml(prefix: string, traySuffix: string, webhookUrl:
                           SPOOLMANSYNC TRAY CHANGE | Old tray {{ old_tray }} -> New tray {{ new_tray }} |
                           Spool: {{ name }} ({{ material }}) |
                           Weight used: {{ tray_weight }}g |
-                          Tag UID: {{ tag_uid }}
+                          Spool Serial: {{ tray_uuid }}
                         level: info
                     - action: rest_command.spoolmansync_update_spool
                       data:
                         filament_name: "{{ name }}"
                         filament_material: "{{ material }}"
-                        filament_tag_uid: "{{ tag_uid }}"
+                        filament_tray_uuid: "{{ tray_uuid }}"
                         filament_used_weight: "{{ tray_weight }}"
                         filament_color: "{{ color }}"
                         filament_active_tray_id: "{{ tray_sensor }}"
@@ -243,13 +243,13 @@ function generateAutomationsYaml(prefix: string, traySuffix: string, webhookUrl:
                           SPOOLMANSYNC PRINT END | Tray {{ tray_number }} |
                           Spool: {{ name }} ({{ material }}) |
                           Weight used: {{ tray_weight }}g |
-                          Tag UID: {{ tag_uid }}
+                          Spool Serial: {{ tray_uuid }}
                         level: info
                     - action: rest_command.spoolmansync_update_spool
                       data:
                         filament_name: "{{ name }}"
                         filament_material: "{{ material }}"
-                        filament_tag_uid: "{{ tag_uid }}"
+                        filament_tray_uuid: "{{ tray_uuid }}"
                         filament_used_weight: "{{ tray_weight }}"
                         filament_color: "{{ color }}"
                         filament_active_tray_id: "{{ tray_sensor }}"
@@ -293,15 +293,15 @@ function generateAutomationsYaml(prefix: string, traySuffix: string, webhookUrl:
     # Only trigger if the entity is actually available
     - condition: template
       value_template: "{{ trigger.to_state.state not in ['unavailable', 'unknown'] }}"
-    # Debounce: only trigger if tag_uid or name actually changed between old and new state
+    # Debounce: only trigger if tray_uuid or name actually changed between old and new state
     - condition: template
       value_template: >-
         {{ trigger.from_state is none or
-           trigger.to_state.attributes.get('tag_uid', '') != trigger.from_state.attributes.get('tag_uid', '') or
+           trigger.to_state.attributes.get('tray_uuid', '') != trigger.from_state.attributes.get('tray_uuid', '') or
            trigger.to_state.attributes.get('name', '') != trigger.from_state.attributes.get('name', '') }}
   variables:
     tray_entity_id: "{{ trigger.entity_id }}"
-    tag_uid: "{{ state_attr(trigger.entity_id, 'tag_uid') | default('') }}"
+    tray_uuid: "{{ state_attr(trigger.entity_id, 'tray_uuid') | default('') }}"
     name: "{{ state_attr(trigger.entity_id, 'name') | default('') }}"
     material: "{{ state_attr(trigger.entity_id, 'type') | default('') }}"
     color: "{{ state_attr(trigger.entity_id, 'color') | default('') }}"
@@ -311,12 +311,12 @@ function generateAutomationsYaml(prefix: string, traySuffix: string, webhookUrl:
         message: >-
           SPOOLMANSYNC TRAY CHANGE DETECTED | {{ tray_entity_id }} |
           Name: {{ name }} | Material: {{ material }} |
-          Tag UID: {{ tag_uid }} | Color: {{ color }}
+          Spool Serial: {{ tray_uuid }} | Color: {{ color }}
         level: info
     - action: rest_command.spoolmansync_tray_change
       data:
         tray_entity_id: "{{ tray_entity_id }}"
-        tag_uid: "{{ tag_uid }}"
+        tray_uuid: "{{ tray_uuid }}"
         name: "{{ name }}"
         material: "{{ material }}"
         color: "{{ color }}"
@@ -393,7 +393,7 @@ rest_command:
         "event": "spool_usage",
         "name": "{{ filament_name }}",
         "material": "{{ filament_material }}",
-        "tag_uid": "{{ filament_tag_uid }}",
+        "tray_uuid": "{{ filament_tray_uuid }}",
         "used_weight": {{ filament_used_weight | round(2) }},
         "color": "{{ filament_color }}",
         "active_tray_id": "{{ filament_active_tray_id }}"
@@ -408,7 +408,7 @@ rest_command:
       {
         "event": "tray_change",
         "tray_entity_id": "{{ tray_entity_id }}",
-        "tag_uid": "{{ tag_uid }}",
+        "tray_uuid": "{{ tray_uuid }}",
         "name": "{{ name }}",
         "material": "{{ material }}",
         "color": "{{ color }}"

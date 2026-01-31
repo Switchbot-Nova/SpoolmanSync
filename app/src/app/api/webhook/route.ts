@@ -13,7 +13,7 @@ import { createActivityLog } from '@/lib/activity-log';
  * {
  *   event: "tray_change",
  *   tray_entity_id: "sensor.x1c_..._tray_1_2",
- *   tag_uid: "...",
+ *   tray_uuid: "...",  // Bambu spool serial number (unique per spool)
  *   color: "#FFFFFF",
  *   material: "PLA",
  *   remaining_weight: 800
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Handle spool_usage event - deduct filament weight from spool
     if (event === 'spool_usage') {
-      const { used_weight, active_tray_id, tag_uid } = body;
+      const { used_weight, active_tray_id, tray_uuid } = body;
 
       if (!used_weight || used_weight <= 0) {
         return NextResponse.json({ status: 'ignored', reason: 'no weight to deduct' });
@@ -65,38 +65,35 @@ export async function POST(request: NextRequest) {
 
       console.log(`Deducted ${used_weight}g from spool #${matchedSpool.id} (${matchedSpool.filament.name})`);
 
-      // Store the RFID tag if we have a valid one from the printer
+      // Store the spool serial number (tray_uuid) if we have a valid one
       // This enables future auto-matching when the same spool is reinserted
-      // Due to Bambu firmware bug, the same spool can report different tag_uids
-      // depending on which tray it's in, so we accumulate multiple tags per spool
+      // tray_uuid is the Bambu spool serial number, unique per physical spool
+      // (unlike tag_uid which differs per RFID tag - each spool has 2 tags)
       let tagStored = false;
-      if (tag_uid && tag_uid !== 'unknown' && tag_uid !== '') {
-        // Check if this specific tag is already stored on this spool
-        const existingTagsRaw = matchedSpool.extra?.['tag'];
-        let alreadyHasThisTag = false;
-        if (existingTagsRaw) {
+      if (tray_uuid && tray_uuid !== 'unknown' && tray_uuid !== '') {
+        // Check if this spool already has this serial number stored
+        const existingTagRaw = matchedSpool.extra?.['tag'];
+        let alreadyHasTag = false;
+        if (existingTagRaw) {
           try {
-            const parsed = JSON.parse(existingTagsRaw);
-            if (parsed && parsed !== '') {
-              const existingTags = parsed.split(',').map((t: string) => t.trim());
-              alreadyHasThisTag = existingTags.includes(tag_uid);
-            }
+            const parsed = JSON.parse(existingTagRaw);
+            alreadyHasTag = parsed === tray_uuid;
           } catch {
             // If parsing fails, assume tag not stored
           }
         }
 
-        if (!alreadyHasThisTag) {
-          console.log(`Storing RFID tag "${tag_uid}" on spool #${matchedSpool.id}`);
-          await client.setSpoolTag(matchedSpool.id, tag_uid);
+        if (!alreadyHasTag) {
+          console.log(`Storing spool serial "${tray_uuid}" on spool #${matchedSpool.id}`);
+          await client.setSpoolTag(matchedSpool.id, tray_uuid);
           tagStored = true;
 
           await createActivityLog({
             type: 'tag_stored',
-            message: `Stored RFID tag on spool #${matchedSpool.id} (${matchedSpool.filament.name})`,
+            message: `Stored spool serial on spool #${matchedSpool.id} (${matchedSpool.filament.name})`,
             details: {
               spoolId: matchedSpool.id,
-              tagUid: tag_uid,
+              trayUuid: tray_uuid,
             },
           });
         }
@@ -134,9 +131,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Handle tray_change event - auto-assign spool by RFID tag or handle empty tray
+    // Handle tray_change event - auto-assign spool by serial number or handle empty tray
     if (event === 'tray_change') {
-      const { tray_entity_id, tag_uid, name, material } = body;
+      const { tray_entity_id, tray_uuid, name, material } = body;
       const spools = await client.getSpools();
 
       // Check if tray is now empty (no filament, or explicitly "Empty")
@@ -182,10 +179,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Tray has filament - try to auto-match by RFID tag
+      // Tray has filament - try to auto-match by spool serial number
       // Uses the `tag` field (stored on first spool_usage)
-      if (tag_uid && tag_uid !== 'unknown' && tag_uid !== '') {
-        const matchedSpool = await client.findSpoolByTag(tag_uid);
+      if (tray_uuid && tray_uuid !== 'unknown' && tray_uuid !== '') {
+        const matchedSpool = await client.findSpoolByTag(tray_uuid);
 
         if (matchedSpool) {
           await client.assignSpoolToTray(matchedSpool.id, tray_entity_id);
@@ -202,21 +199,21 @@ export async function POST(request: NextRequest) {
 
           await createActivityLog({
             type: 'spool_change',
-            message: `Auto-assigned spool #${matchedSpool.id} to ${tray_entity_id} (matched by RFID tag)`,
-            details: { spoolId: matchedSpool.id, trayId: tray_entity_id, matchedBy: 'rfid_tag', tagUid: tag_uid },
+            message: `Auto-assigned spool #${matchedSpool.id} to ${tray_entity_id} (matched by spool serial)`,
+            details: { spoolId: matchedSpool.id, trayId: tray_entity_id, matchedBy: 'spool_serial', trayUuid: tray_uuid },
           });
 
           return NextResponse.json({
             status: 'success',
             spool: matchedSpool,
-            matchedBy: 'rfid_tag',
+            matchedBy: 'spool_serial',
           });
         }
       }
 
       // No auto-match - user needs to manually assign spool
       // Log what the printer detected for debugging
-      console.log(`Tray ${tray_entity_id} changed but no matching spool found. Printer reports: name="${name}", material="${material}", tag_uid="${tag_uid}"`);
+      console.log(`Tray ${tray_entity_id} changed but no matching spool found. Printer reports: name="${name}", material="${material}", tray_uuid="${tray_uuid}"`);
 
       // Emit tray_change event so dashboard can refresh and show warning banner
       const updateEvent: SpoolUpdateEvent = {
@@ -229,7 +226,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         status: 'no_match',
         message: 'No spool assigned to this tray. Please assign a spool manually in SpoolmanSync.',
-        printerReports: { name, material, tag_uid },
+        printerReports: { name, material, tray_uuid },
       });
     }
 
@@ -259,18 +256,18 @@ export async function GET() {
           event: 'spool_usage',
           name: 'Filament Name',
           material: 'PLA',
-          tag_uid: '...',
+          tray_uuid: '...',
           used_weight: 3.91,
           color: '#FFFFFF',
           active_tray_id: 'sensor.x1c_..._tray_1',
         },
       },
       tray_change: {
-        description: 'Auto-assign spool by tag_uid (Bambu spools only)',
+        description: 'Auto-assign spool by tray_uuid (Bambu spools only)',
         payload: {
           event: 'tray_change',
           tray_entity_id: 'sensor.x1c_..._tray_1',
-          tag_uid: '...',
+          tray_uuid: '...',
           color: '#FFFFFF',
           material: 'PLA',
         },
