@@ -8,6 +8,7 @@
  */
 
 import { HAPrinter } from './api/homeassistant';
+import { extractPrinterPrefix } from './entity-patterns';
 
 export interface GeneratedConfig {
   automationsYaml: string;
@@ -91,15 +92,6 @@ export function generateHAConfig(
     printerCount: printers.length,
     trayCount,
   };
-}
-
-/**
- * Extract printer prefix from entity ID
- * e.g., "sensor.x1c_00m09d462101575_print_status" -> "x1c_00m09d462101575"
- */
-function extractPrinterPrefix(entityId: string): string {
-  const match = entityId.match(/sensor\.(.+)_print_status$/);
-  return match ? match[1] : entityId.replace('sensor.', '').replace('_print_status', '');
 }
 
 /**

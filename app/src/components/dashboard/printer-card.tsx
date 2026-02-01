@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TraySlot } from './tray-slot';
 import type { HATray } from '@/lib/api/homeassistant';
 import type { Spool } from '@/lib/api/spoolman';
+import { extractPrinterPrefix } from '@/lib/entity-patterns';
 
 interface MismatchInfo {
   type: 'material' | 'color' | 'both';
@@ -83,14 +84,15 @@ export function PrinterCard({ printer, spools, onSpoolAssign, onSpoolUnassign }:
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <TraySlot
               tray={printer.external_spool || {
-                entity_id: `sensor.${printer.entity_id.replace('sensor.', '').replace('_print_status', '')}_external_spool`,
+                // Use centralized pattern extraction for external spool fallback
+                entity_id: `sensor.${extractPrinterPrefix(printer.entity_id)}_external_spool`,
                 tray_number: 0,
               }}
               assignedSpool={printer.external_spool?.assigned_spool}
               spools={spools}
               onAssign={(spoolId) => {
                 const extEntityId = printer.external_spool?.entity_id ||
-                  `sensor.${printer.entity_id.replace('sensor.', '').replace('_print_status', '')}_external_spool`;
+                  `sensor.${extractPrinterPrefix(printer.entity_id)}_external_spool`;
                 onSpoolAssign(extEntityId, spoolId);
               }}
               onUnassign={onSpoolUnassign}

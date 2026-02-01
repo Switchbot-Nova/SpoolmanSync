@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { HomeAssistantClient, isEmbeddedMode, getEmbeddedHAUrl } from '@/lib/api/homeassistant';
 import { generateHAConfig, mergeConfiguration } from '@/lib/ha-config-generator';
 import { createActivityLog } from '@/lib/activity-log';
+import { extractPrinterPrefix } from '@/lib/entity-patterns';
 import * as fs from 'fs/promises';
 
 
@@ -191,8 +192,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Upsert automation tracking record
-        const automationId = `spoolmansync_update_spool_${printers[0].entity_id.replace(/sensor\./g, '').replace(/_print_status$/, '')}`;
+        // Upsert automation tracking record using centralized pattern extraction
+        const automationId = `spoolmansync_update_spool_${extractPrinterPrefix(printers[0].entity_id)}`;
         await prisma.automation.upsert({
           where: { haAutomationId: automationId },
           create: {

@@ -4,6 +4,14 @@
  */
 
 import prisma from '@/lib/db';
+import {
+  isPrintStatusEntity,
+  buildPrintStatusPattern,
+  buildAmsPattern,
+  buildTrayPattern,
+  buildExternalSpoolPattern,
+  cleanFriendlyName,
+} from '@/lib/entity-patterns';
 
 export interface HAState {
   entity_id: string;
@@ -427,29 +435,27 @@ export class HomeAssistantClient {
     const states = await this.getStates();
     const printers: HAPrinter[] = [];
 
-    // Find printer entities (sensor.*_print_status pattern from ha-bambulab)
-    const printerStates = states.filter(s =>
-      s.entity_id.startsWith('sensor.') &&
-      s.entity_id.endsWith('_print_status')
-    );
+    // Find printer entities using centralized localized patterns
+    // See src/lib/entity-patterns.ts to add support for more languages
+    const printerStates = states.filter(s => isPrintStatusEntity(s.entity_id));
 
     for (const printerState of printerStates) {
-      // Extract printer prefix (e.g., "x1c_00m09d462101575")
-      const match = printerState.entity_id.match(/sensor\.(.+)_print_status$/);
+      // Extract printer prefix using centralized patterns
+      const match = printerState.entity_id.match(buildPrintStatusPattern());
       if (!match) continue;
 
       const prefix = match[1];
       const printer: HAPrinter = {
         entity_id: printerState.entity_id,
-        name: (printerState.attributes.friendly_name as string)?.replace(' Print Status', '') || prefix,
+        name: cleanFriendlyName(printerState.attributes.friendly_name as string, prefix),
         state: printerState.state,
         ams_units: [],
       };
 
       // Find AMS units for this printer
       // Group by AMS number and prefer highest suffix number (newer ha-bambulab versions use _2, _3, etc.)
-      // Pattern matches: sensor.xxx_ams_1_humidity, sensor.xxx_ams_1_humidity_2, sensor.xxx_ams_1_humidity_3, etc.
-      const amsPattern = new RegExp(`^sensor\\.${prefix}_ams_(\\d+)_humidity(?:_(\\d+))?$`);
+      // Uses centralized localized patterns - see src/lib/entity-patterns.ts
+      const amsPattern = buildAmsPattern(prefix);
       const amsStates = states.filter(s => amsPattern.test(s.entity_id));
 
       // Helper to extract entity suffix number (0 if no suffix)
@@ -496,10 +502,9 @@ export class HomeAssistantClient {
         };
 
         // Find trays for this AMS (newer versions use _2, _3, etc. suffix)
+        // Uses centralized localized patterns - see src/lib/entity-patterns.ts
         for (let trayNum = 1; trayNum <= 4; trayNum++) {
-          // Find all matching tray entities with any suffix (or no suffix)
-          // Matches: sensor.xxx_ams_1_tray_1, sensor.xxx_ams_1_tray_1_2, sensor.xxx_ams_1_tray_1_3, etc.
-          const trayPattern = new RegExp(`^sensor\\.${prefix}_ams_${amsNumber}_tray_${trayNum}(?:_(\\d+))?$`);
+          const trayPattern = buildTrayPattern(prefix, amsNumber, trayNum);
           const trayCandidates = states.filter(s => trayPattern.test(s.entity_id));
 
           if (trayCandidates.length > 0) {
@@ -533,11 +538,9 @@ export class HomeAssistantClient {
         printer.ams_units.push(ams);
       }
 
-      // Find external spool - match multiple naming conventions:
-      // - sensor.{prefix}_external_spool (older format)
-      // - sensor.{prefix}_external_spool_2 (with suffix)
-      // - sensor.{prefix}_externalspool_external_spool (newer format)
-      const extPattern = new RegExp(`^sensor\\.${prefix}_(external_spool|externalspool_external_spool)(?:_(\\d+))?$`);
+      // Find external spool using centralized localized patterns
+      // See src/lib/entity-patterns.ts to add support for more languages
+      const extPattern = buildExternalSpoolPattern(prefix);
       const extCandidates = states.filter(s => extPattern.test(s.entity_id));
 
       if (extCandidates.length > 0) {
