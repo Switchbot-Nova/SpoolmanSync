@@ -1,5 +1,6 @@
 # SpoolmanSync
 
+[![Ko-Fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-ff5f5f?logo=ko-fi)](https://ko-fi.com/gibz104)
 ![Build Status](https://github.com/gibz104/SpoolmanSync/actions/workflows/docker-publish.yml/badge.svg)
 
 Sync Bambu Lab AMS trays with [Spoolman](https://github.com/Donkie/Spoolman) via Home Assistant.
