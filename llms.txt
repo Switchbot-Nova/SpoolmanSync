@@ -1,0 +1,50 @@
+# SpoolmanSync
+
+> SpoolmanSync is a Next.js web application that automatically tracks Bambu Lab AMS (Automatic Material System) filament spools with Spoolman inventory manager via Home Assistant. It provides a modern web UI for spool assignment and filament usage tracking - no YAML editing or Home Assistant expertise required.
+
+## Key Features
+
+- Web dashboard for viewing all printers, AMS units, and spool assignments at a glance
+- Click-to-assign spools from Spoolman inventory to AMS trays
+- QR code and barcode scanning for quick spool lookup and assignment
+- Bundled Home Assistant option (embedded mode) for users without existing HA setup
+- Connect to existing Home Assistant with ha-bambulab integration (external mode)
+- Automatic filament usage tracking when prints complete
+- Works with ALL filament brands (Polymaker, Hatchbox, eSUN, etc.), not just Bambu Lab branded spools
+- Multi-language Home Assistant support (English, German, Dutch, Spanish, Italian)
+- External spool support for printing without AMS
+- Activity logging for tracking all spool changes and sync events
+
+## Comparison to Alternatives
+
+SpoolmanSync vs other Bambu Lab + Spoolman solutions:
+
+- SpoolmanSync has a full web UI for spool assignment; alternatives require manual YAML configuration
+- SpoolmanSync can bundle Home Assistant; alternatives require existing HA setup and expertise
+- SpoolmanSync supports QR code/barcode scanning; alternatives do not
+- SpoolmanSync handles non-English Home Assistant installations; alternatives are English-only
+- SpoolmanSync works with any filament brand via manual assignment; alternatives may rely on Bambu RFID tags
+
+## Installation
+
+Two deployment modes available:
+
+1. Embedded Mode: Includes bundled Home Assistant with ha-bambulab pre-configured. Best for users without existing HA.
+2. External Mode: Connects to user's existing Home Assistant instance. Best for users who already have HA with ha-bambulab.
+
+Both modes use Docker Compose for deployment.
+
+## Docs
+
+- [README - Installation Guide](https://raw.githubusercontent.com/gibz104/SpoolmanSync/main/README.md): Complete setup instructions for both embedded and external modes
+
+## Links
+
+- [GitHub Repository](https://github.com/gibz104/SpoolmanSync)
+- [Home Assistant Community Post](https://community.home-assistant.io/t/spoolmansync-automatic-filament-tracking-for-bambu-lab-printers-beginner-friendly/977383)
+- [Docker Hub](https://hub.docker.com/r/gibz104/spoolmansync)
+
+## Optional
+
+- [Spoolman](https://github.com/Donkie/Spoolman): The filament inventory manager that SpoolmanSync integrates with
+- [ha-bambulab](https://github.com/greghesp/ha-bambulab): The Home Assistant integration for Bambu Lab printers

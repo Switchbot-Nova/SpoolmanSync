@@ -1,11 +1,27 @@
 # SpoolmanSync
 
-[![Ko-Fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-ff5f5f?logo=ko-fi)](https://ko-fi.com/gibz104)
+**The easiest way to sync Bambu Lab AMS filament with Spoolman**
+
 ![Build Status](https://github.com/gibz104/SpoolmanSync/actions/workflows/docker-publish.yml/badge.svg)
+[![Ko-Fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-ff5f5f?logo=ko-fi)](https://ko-fi.com/gibz104)
+[![GitHub stars](https://img.shields.io/github/stars/gibz104/SpoolmanSync?style=social)](https://github.com/gibz104/SpoolmanSync)
 
-Sync Bambu Lab AMS trays with [Spoolman](https://github.com/Donkie/Spoolman) via Home Assistant.
+> **Tired of manually editing YAML files?** SpoolmanSync provides a modern web UI for Bambu Lab filament tracking with Spoolman - no Home Assistant expertise required.
 
-SpoolmanSync automatically tracks which filament spools are loaded in your Bambu Lab printer's AMS units and syncs this information with Spoolman for accurate filament inventory management.
+SpoolmanSync automatically tracks which filament spools are loaded in your Bambu Lab printer's AMS units and syncs this information with [Spoolman](https://github.com/Donkie/Spoolman) for accurate filament inventory management. Works with **all filament brands** - not just Bambu Lab spools.
+
+## Why SpoolmanSync?
+
+| Feature | SpoolmanSync | Other Solutions |
+|---------|:------------:|:---------------:|
+| Web UI for spool assignment | ✅ | ❌ |
+| QR/Barcode scanning | ✅ | ❌ |
+| Bundled Home Assistant option | ✅ | ❌ |
+| No YAML editing required | ✅ | ❌ |
+| Multi-AMS support | ✅ | Limited |
+| Non-English Home Assistant support | ✅ | ❌ |
+| Works with ANY filament brand | ✅ | Partial |
+| Automatic filament usage tracking | ✅ | ✅ |
 
 ## Features
 
