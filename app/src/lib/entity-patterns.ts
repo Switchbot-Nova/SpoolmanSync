@@ -375,7 +375,7 @@ export function buildPrintStatusPattern(): RegExp {
  */
 export function buildAmsPattern(prefix: string): RegExp {
   const names = AMS_HUMIDITY_NAMES.join('|');
-  return new RegExp(`^sensor\\.${prefix}_ams_(\\d+)_(?:${names})(?:_(\\d+))?$`);
+  return new RegExp(`^sensor\\.${prefix}_ams_(\\d+|lite)_(?:${names})(?:_(\\d+))?$`);
 }
 
 /**

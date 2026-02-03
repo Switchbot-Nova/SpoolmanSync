@@ -93,9 +93,9 @@ export function generateHAConfig(
 
   // Add trays from all AMS units
   for (const ams of printer.ams_units) {
-    // Extract AMS number from entity_id (e.g., sensor.xxx_ams_2_humidity -> 2)
-    const amsMatch = ams.entity_id.match(/_ams_(\d+)_/);
-    const amsNumber = amsMatch ? parseInt(amsMatch[1], 10) : 1;
+    // Extract AMS number from entity_id (e.g., sensor.xxx_ams_2_humidity -> 2, sensor.xxx_ams_lite_... -> 1)
+    const amsMatch = ams.entity_id.match(/_ams_(\d+|lite)_/);
+    const amsNumber = amsMatch ? (amsMatch[1] === 'lite' ? 1 : parseInt(amsMatch[1], 10)) : 1;
 
     for (const tray of ams.trays) {
       allTrays.push({
