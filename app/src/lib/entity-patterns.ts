@@ -2,7 +2,13 @@
  * Centralized entity name patterns for ha-bambulab integration
  *
  * ha-bambulab localizes entity IDs based on Home Assistant's language setting.
- * Add new language patterns here - they will automatically be used throughout the app.
+ * Supports all 17 languages from ha-bambulab translations.
+ *
+ * Supported languages:
+ * ca (Catalan), cs (Czech), da (Danish), de (German), el (Greek),
+ * en (English), es (Spanish), fr (French), it (Italian), ko (Korean),
+ * nl (Dutch), pl (Polish), pt (Portuguese), pt-br (Portuguese Brazil),
+ * sk (Slovak), th (Thai), zh-Hans (Chinese Simplified)
  */
 
 // Localized suffixes for the print_status sensor (used to identify printers)
@@ -12,7 +18,19 @@ export const PRINT_STATUS_SUFFIXES = [
   'printstatus',            // Dutch
   'estado_de_la_impresion', // Spanish
   'stato_di_stampa',        // Italian
-  // Add more languages here:
+  'etat_de_l_impression',   // French (État de l'impression)
+  'etat_de_limpression',    // French alternate
+  'estat_de_la_impressio',  // Catalan (Estat de la Impressió)
+  'stav_tisku',             // Czech (Stav tisku)
+  'print_status',           // Danish (same as English)
+  'katastasi_ektyposis',    // Greek (Κατάσταση εκτύπωσης)
+  'chullyeog_sangtae',      // Korean (출력 상태)
+  'status_druku',           // Polish (Status druku)
+  'status_de_impressao',    // Portuguese (Status de impressão)
+  'status_da_impressao',    // Portuguese Brazil (Status da impressão)
+  'stav_tlace',             // Slovak (Stav tlače)
+  'sathana_phim',           // Thai (สถานะพิมพ์)
+  'dayin_zhuangtai',        // Chinese (打印状态)
 ];
 
 // Localized names for AMS humidity sensor
@@ -22,15 +40,35 @@ export const AMS_HUMIDITY_NAMES = [
   'vochtigheid',       // Dutch
   'humedad',           // Spanish
   'umidita',           // Italian
-  // Add more languages here:
+  'humidite',          // French (Humidité)
+  'humitat',           // Catalan (Humitat)
+  'vlhkost',           // Czech (Vlhkost)
+  'fugtighed',         // Danish (Fugtighed)
+  'ygrotita',          // Greek (Υγρότητα)
+  'seupgi',            // Korean (습기)
+  'wilgotnosc',        // Polish (Wilgotność)
+  'umidade',           // Portuguese/Portuguese Brazil (Umidade)
+  'vlhkost',           // Slovak (Vlhkosť) - same as Czech
+  'khwam_chuen',       // Thai (ความชื้น)
+  'shidu',             // Chinese (湿度)
+  // Also support humidity_index variants
+  'indice_d_humidite', // French (Indice d'humidité)
+  'index_der_luftfeuchtigkeit', // German
 ];
 
 // Localized names for AMS tray sensor
 export const TRAY_NAMES = [
-  'tray',              // English (also used in Dutch)
-  'slot',              // German, Italian
-  'bandeja',           // Spanish
-  // Add more languages here:
+  'tray',              // English, Dutch
+  'slot',              // German, Czech, Polish, Italian
+  'bandeja',           // Spanish, Portuguese, Portuguese Brazil
+  'emplacement',       // French (Emplacement)
+  'safata',            // Catalan (Safata)
+  'bakke',             // Danish (Bakke)
+  'thesi',             // Greek (Θέση)
+  'teulei',            // Korean (트레이)
+  'zasobnik',          // Slovak (Zásobník)
+  'thad',              // Thai (ถาด)
+  'liaopan',           // Chinese (料盘)
 ];
 
 // Localized names for external spool sensor
@@ -42,7 +80,7 @@ export const EXTERNAL_SPOOL_NAMES = [
   // German
   'externe_spule',                    // Older format
   'externalspool_externe_spule',      // Newer hybrid (English prefix + German suffix)
-  'externespule_externe_spule',       // Newer fully localized (just in case)
+  'externespule_externe_spule',       // Newer fully localized
   // Dutch
   'externe_spoel',                    // Older format
   'externalspool_externe_spoel',      // Newer hybrid
@@ -55,7 +93,47 @@ export const EXTERNAL_SPOOL_NAMES = [
   'bobina_esterna',                   // Older format
   'externalspool_bobina_esterna',     // Newer hybrid
   'bobinaesterna_bobina_esterna',     // Newer fully localized
-  // Add more languages here:
+  // French
+  'bobine_externe',                   // Older format
+  'externalspool_bobine_externe',     // Newer hybrid
+  'bobineexterne_bobine_externe',     // Newer fully localized
+  // Catalan
+  'bobina_externa',                   // Same as Spanish
+  'externalspool_bobina_externa',     // Newer hybrid
+  // Czech
+  'externi_civka',                    // Older format (Externí cívka)
+  'externalspool_externi_civka',      // Newer hybrid
+  'externicivka_externi_civka',       // Newer fully localized
+  // Danish
+  'ekstern_spole',                    // Older format (Ekstern spole)
+  'externalspool_ekstern_spole',      // Newer hybrid
+  'eksternspole_ekstern_spole',       // Newer fully localized
+  // Greek
+  'exoteriko_nima',                   // Older format (Εξωτερικό νήμα)
+  'externalspool_exoteriko_nima',     // Newer hybrid
+  'exoteriko_nima_exoteriko_nima',    // Newer fully localized
+  // Korean
+  'oebu_seupul',                      // Older format (외부 스풀)
+  'externalspool_oebu_seupul',        // Newer hybrid
+  // Polish
+  'zewnetrzna_szpula',                // Older format (Zewnętrzna szpula)
+  'externalspool_zewnetrzna_szpula',  // Newer hybrid
+  'zewnetrznaszpula_zewnetrzna_szpula', // Newer fully localized
+  // Portuguese / Portuguese Brazil
+  'carretel_externo',                 // Older format (Carretel externo)
+  'externalspool_carretel_externo',   // Newer hybrid
+  'carretelexterno_carretel_externo', // Newer fully localized
+  // Slovak
+  'vonkajsia_cievka',                 // Older format (Vonkajšia cievka)
+  'externalspool_vonkajsia_cievka',   // Newer hybrid
+  'vonkajsiacievka_vonkajsia_cievka', // Newer fully localized
+  // Thai
+  'sapun_phainok',                    // Older format (สปูลภายนอก)
+  'externalspool_sapun_phainok',      // Newer hybrid
+  // Chinese
+  'waigua_liaopan',                   // Older format (外挂料盘)
+  'externalspool_waigua_liaopan',     // Newer hybrid
+  'waigualiaopan_waigua_liaopan',     // Newer fully localized
 ];
 
 // Localized friendly name suffixes to strip from printer names
@@ -65,41 +143,89 @@ export const FRIENDLY_NAME_SUFFIXES = [
   'Printstatus',            // Dutch
   'Estado de la Impresión', // Spanish
   'Stato di stampa',        // Italian
-  // Add more languages here:
+  'État de l\'impression',  // French
+  'Estat de la Impressió',  // Catalan
+  'Stav tisku',             // Czech
+  'Print status',           // Danish
+  'Κατάσταση εκτύπωσης',    // Greek
+  '출력 상태',               // Korean
+  'Status druku',           // Polish
+  'Status de impressão',    // Portuguese
+  'Status da impressão',    // Portuguese Brazil
+  'Stav tlače',             // Slovak
+  'สถานะพิมพ์',              // Thai
+  '打印状态',                // Chinese
 ];
 
 // Localized names for current_stage sensor (used in automation triggers)
 export const CURRENT_STAGE_NAMES = [
   'current_stage',           // English
-  'aktueller_arbeitsschritt', // German
-  'huidige_fase',            // Dutch
-  'estado_actual',           // Spanish
-  'fase_corrente',           // Italian
-  // Add more languages here:
+  'aktueller_arbeitsschritt', // German (Aktueller Arbeitsschritt)
+  'huidige_fase',            // Dutch (Huidige fase)
+  'estado_actual',           // Spanish (Estado actual)
+  'fase_corrente',           // Italian (Fase corrente)
+  'etape_actuelle',          // French (Étape actuelle)
+  'estat_actual',            // Catalan (Estat actual)
+  'aktualni_faze',           // Czech (Aktuální fáze)
+  'nuvaerende_trin',         // Danish (Nuværende trin)
+  'trechon_stadio',          // Greek (Τρέχον στάδιο)
+  'hyeonjae_dangye',         // Korean (현재 단계)
+  'aktualny_stan',           // Polish (Aktualny stan)
+  'fase_atual',              // Portuguese/Portuguese Brazil (Fase atual)
+  'aktualny_stav',           // Slovak (Aktuálny stav)
+  'khantaun_pajjuban',       // Thai (ขั้นตอนปัจจุบัน)
+  'dangqian_jieduan',        // Chinese (当前阶段)
 ];
 
 // Localized names for print_weight sensor
 export const PRINT_WEIGHT_NAMES = [
   'print_weight',            // English
-  'gewicht_des_drucks',      // German
+  'gewicht_des_drucks',      // German (Gewicht des Drucks)
   'gewicht_van_print',       // Dutch
-  'peso_de_la_impresion',    // Spanish
-  'grammatura_stampa',       // Italian
-  // Add more languages here:
+  'peso_de_la_impresion',    // Spanish (Peso de la impresión)
+  'grammatura_stampa',       // Italian (Grammatura stampa)
+  'poids_de_l_impression',   // French (Poids de l'impression)
+  'poids_de_limpression',    // French alternate
+  'pes_de_la_impressio',     // Catalan (Pes de la impressió)
+  'hmotnost_tisku',          // Czech (Hmotnost tisku)
+  'printvaegt',              // Danish (Printvægt)
+  'varos_ektyposis',         // Greek (Βάρος εκτύπωσης)
+  'chullyeog_muge',          // Korean (출력 무게)
+  'waga_filamentu',          // Polish (Waga filamentu)
+  'peso_de_impressao',       // Portuguese (Peso de impressão)
+  'peso_da_impressao',       // Portuguese Brazil (Peso da impressão)
+  'vaha_tlace',              // Slovak (Váha tlače)
+  'namnak_phim',             // Thai (น้ำหนักพิมพ์)
+  'dayin_zhongliang',        // Chinese (打印重量)
 ];
 
 // Localized names for print_progress sensor
 export const PRINT_PROGRESS_NAMES = [
   'print_progress',          // English
-  'druckfortschritt',        // German
-  'printvoortgang',          // Dutch
-  'progreso_de_la_impresion', // Spanish
-  'progressi_di_stampa',     // Italian
-  // Add more languages here:
+  'druckfortschritt',        // German (Druckfortschritt)
+  'printvoortgang',          // Dutch (Printvoortgang)
+  'progreso_de_la_impresion', // Spanish (Progreso de la impresión)
+  'progressi_di_stampa',     // Italian (Progressi di stampa)
+  'progression_de_l_impression', // French (Progression de l'impression)
+  'progression_de_limpression',  // French alternate
+  'progres_de_la_impressio', // Catalan (Progrés de la impressió)
+  'prubeh_tisku',            // Czech (Průběh tisku)
+  'print_fremskridt',        // Danish (Print fremskridt)
+  'proodos_ektyposis',       // Greek (Πρόοδος εκτύπωσης)
+  'chullyeog_jinhaeng_sanghwang', // Korean (출력 진행 상황)
+  'postep_drukowania',       // Polish (Postęp drukowania)
+  'imprimir_progresso',      // Portuguese (Imprimir progresso)
+  'progresso_da_impressao',  // Portuguese Brazil (Progresso da impressão)
+  'priebeh_tlace',           // Slovak (Priebeh tlače)
+  'khwam_khuebhna_kan_phim', // Thai (ความคืบหน้าการพิมพ์)
+  'dayin_jindu',             // Chinese (打印进度)
 ];
 
 // Supported languages for entity localization
-export type SupportedLanguage = 'en' | 'de' | 'nl' | 'es' | 'it';
+export type SupportedLanguage =
+  | 'en' | 'de' | 'nl' | 'es' | 'it' | 'fr'
+  | 'ca' | 'cs' | 'da' | 'el' | 'ko' | 'pl'
+  | 'pt' | 'pt-br' | 'sk' | 'th' | 'zh-Hans';
 
 // Mapping of print_status suffix to language code
 const PRINT_STATUS_TO_LANGUAGE: Record<string, SupportedLanguage> = {
@@ -108,6 +234,18 @@ const PRINT_STATUS_TO_LANGUAGE: Record<string, SupportedLanguage> = {
   'printstatus': 'nl',
   'estado_de_la_impresion': 'es',
   'stato_di_stampa': 'it',
+  'etat_de_l_impression': 'fr',
+  'etat_de_limpression': 'fr',
+  'estat_de_la_impressio': 'ca',
+  'stav_tisku': 'cs',
+  'katastasi_ektyposis': 'el',
+  'chullyeog_sangtae': 'ko',
+  'status_druku': 'pl',
+  'status_de_impressao': 'pt',
+  'status_da_impressao': 'pt-br',
+  'stav_tlace': 'sk',
+  'sathana_phim': 'th',
+  'dayin_zhuangtai': 'zh-Hans',
 };
 
 // Localized entity names by language
@@ -147,6 +285,78 @@ const LOCALIZED_ENTITIES: Record<SupportedLanguage, {
     print_weight: 'grammatura_stampa',
     print_progress: 'progressi_di_stampa',
     external_spool: 'bobina_esterna',
+  },
+  fr: {
+    current_stage: 'etape_actuelle',
+    print_weight: 'poids_de_l_impression',
+    print_progress: 'progression_de_l_impression',
+    external_spool: 'bobine_externe',
+  },
+  ca: {
+    current_stage: 'estat_actual',
+    print_weight: 'pes_de_la_impressio',
+    print_progress: 'progres_de_la_impressio',
+    external_spool: 'bobina_externa',
+  },
+  cs: {
+    current_stage: 'aktualni_faze',
+    print_weight: 'hmotnost_tisku',
+    print_progress: 'prubeh_tisku',
+    external_spool: 'externi_civka',
+  },
+  da: {
+    current_stage: 'nuvaerende_trin',
+    print_weight: 'printvaegt',
+    print_progress: 'print_fremskridt',
+    external_spool: 'ekstern_spole',
+  },
+  el: {
+    current_stage: 'trechon_stadio',
+    print_weight: 'varos_ektyposis',
+    print_progress: 'proodos_ektyposis',
+    external_spool: 'exoteriko_nima',
+  },
+  ko: {
+    current_stage: 'hyeonjae_dangye',
+    print_weight: 'chullyeog_muge',
+    print_progress: 'chullyeog_jinhaeng_sanghwang',
+    external_spool: 'oebu_seupul',
+  },
+  pl: {
+    current_stage: 'aktualny_stan',
+    print_weight: 'waga_filamentu',
+    print_progress: 'postep_drukowania',
+    external_spool: 'zewnetrzna_szpula',
+  },
+  pt: {
+    current_stage: 'fase_atual',
+    print_weight: 'peso_de_impressao',
+    print_progress: 'imprimir_progresso',
+    external_spool: 'carretel_externo',
+  },
+  'pt-br': {
+    current_stage: 'fase_atual',
+    print_weight: 'peso_da_impressao',
+    print_progress: 'progresso_da_impressao',
+    external_spool: 'carretel_externo',
+  },
+  sk: {
+    current_stage: 'aktualny_stav',
+    print_weight: 'vaha_tlace',
+    print_progress: 'priebeh_tlace',
+    external_spool: 'vonkajsia_cievka',
+  },
+  th: {
+    current_stage: 'khantaun_pajjuban',
+    print_weight: 'namnak_phim',
+    print_progress: 'khwam_khuebhna_kan_phim',
+    external_spool: 'sapun_phainok',
+  },
+  'zh-Hans': {
+    current_stage: 'dangqian_jieduan',
+    print_weight: 'dayin_zhongliang',
+    print_progress: 'dayin_jindu',
+    external_spool: 'waigua_liaopan',
   },
 };
 
