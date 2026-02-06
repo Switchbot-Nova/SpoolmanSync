@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Nav } from '@/components/nav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,15 +14,58 @@ interface ActivityLog {
   createdAt: string;
 }
 
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+type FilterType = 'all' | 'actions' | 'tray_changes' | 'errors';
+
+const FILTER_OPTIONS: { value: FilterType; label: string; description: string }[] = [
+  { value: 'all', label: 'All Events', description: 'Show all activity' },
+  { value: 'actions', label: 'Actions', description: 'Spool assignments and usage' },
+  { value: 'tray_changes', label: 'Tray Changes', description: 'All detected tray changes' },
+  { value: 'errors', label: 'Errors', description: 'Errors only' },
+];
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
 export default function LogsPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const seenLogIdsRef = useRef<Set<string>>(new Set());
+
+  const fetchLogs = useCallback(async (pageNum: number = page, filterType: FilterType = filter, limit: number = pageSize) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/logs?page=${pageNum}&limit=${limit}&filter=${filterType}`);
+      const data = await res.json();
+      const fetchedLogs = data.logs || [];
+      setLogs(fetchedLogs);
+      setPagination(data.pagination || null);
+
+      // Update seen IDs ref for duplicate detection in SSE
+      seenLogIdsRef.current = new Set(fetchedLogs.map((log: ActivityLog) => log.id));
+    } catch (err) {
+      console.error('Failed to fetch logs:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filter, pageSize]);
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(page, filter, pageSize);
+  }, [page, filter, pageSize, fetchLogs]);
 
+  useEffect(() => {
     // Set up SSE connection for real-time updates
     const eventSource = new EventSource('/api/events');
     eventSourceRef.current = eventSource;
@@ -35,20 +78,40 @@ export default function LogsPage() {
       try {
         const data = JSON.parse(event.data);
         if (data.eventType === 'activity_log') {
-          // Prepend new log to the list
-          setLogs((prevLogs) => {
-            // Avoid duplicates
-            if (prevLogs.some((log) => log.id === data.id)) {
-              return prevLogs;
+          // Check if this log matches our current filter
+          const matchesFilter = shouldShowLog(data.type, filter);
+
+          if (matchesFilter && page === 1) {
+            // Check for duplicates using the ref (synchronous check)
+            if (seenLogIdsRef.current.has(data.id)) {
+              return; // Already seen this log
             }
-            return [{
-              id: data.id,
-              type: data.type,
-              message: data.message,
-              details: data.details,
-              createdAt: data.createdAt,
-            }, ...prevLogs].slice(0, 100); // Keep max 100 logs
-          });
+
+            // Mark as seen
+            seenLogIdsRef.current.add(data.id);
+
+            // Prepend new log to the list
+            setLogs((prevLogs) => {
+              return [{
+                id: data.id,
+                type: data.type,
+                message: data.message,
+                details: data.details,
+                createdAt: data.createdAt,
+              }, ...prevLogs].slice(0, pageSize); // Keep max pageSize logs
+            });
+
+            // Update pagination to reflect the new log
+            setPagination((prev) => {
+              if (!prev) return prev;
+              const newTotal = prev.total + 1;
+              return {
+                ...prev,
+                total: newTotal,
+                totalPages: Math.ceil(newTotal / prev.limit),
+              };
+            });
+          }
         }
       } catch {
         // Ignore parse errors (heartbeats, etc.)
@@ -62,18 +125,30 @@ export default function LogsPage() {
     return () => {
       eventSource.close();
     };
-  }, []);
+  }, [filter, page, pageSize]);
 
-  const fetchLogs = async () => {
-    try {
-      const res = await fetch('/api/logs');
-      const data = await res.json();
-      setLogs(data.logs || []);
-    } catch (err) {
-      console.error('Failed to fetch logs:', err);
-    } finally {
-      setLoading(false);
+  const shouldShowLog = (type: string, filterType: FilterType): boolean => {
+    if (filterType === 'all') return true;
+    if (filterType === 'actions') {
+      return ['spool_usage', 'spool_change', 'spool_unassign', 'spool_assign', 'tag_stored'].includes(type);
     }
+    if (filterType === 'tray_changes') {
+      return ['spool_change', 'spool_unassign', 'tray_change_detected', 'tray_empty_detected'].includes(type);
+    }
+    if (filterType === 'errors') {
+      return type === 'error';
+    }
+    return true;
+  };
+
+  const handleFilterChange = (newFilter: FilterType) => {
+    setFilter(newFilter);
+    setPage(1); // Reset to first page when filter changes
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1); // Reset to first page when page size changes
   };
 
   const getTypeBadgeVariant = (type: string) => {
@@ -81,7 +156,17 @@ export default function LogsPage() {
       case 'error':
         return 'destructive';
       case 'spool_change':
+      case 'spool_assign':
         return 'default';
+      case 'spool_usage':
+        return 'secondary';
+      case 'spool_unassign':
+        return 'outline';
+      case 'tray_change_detected':
+      case 'tray_empty_detected':
+        return 'secondary';
+      case 'tag_stored':
+        return 'outline';
       case 'connection':
         return 'secondary';
       case 'webhook':
@@ -91,11 +176,36 @@ export default function LogsPage() {
     }
   };
 
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'spool_usage':
+        return 'Usage';
+      case 'spool_change':
+        return 'Assigned';
+      case 'spool_assign':
+        return 'Assigned';
+      case 'spool_unassign':
+        return 'Unassigned';
+      case 'tray_change_detected':
+        return 'Tray Change';
+      case 'tray_empty_detected':
+        return 'Empty Tray';
+      case 'tag_stored':
+        return 'Tag Stored';
+      case 'error':
+        return 'Error';
+      case 'connection':
+        return 'Connection';
+      default:
+        return type;
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
 
-  if (loading) {
+  if (loading && logs.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <Nav />
@@ -112,7 +222,7 @@ export default function LogsPage() {
     <div className="min-h-screen bg-background">
       <Nav />
       <main className="w-full max-w-7xl mx-auto py-6 px-3 sm:px-4 md:px-6">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">Activity Logs</h1>
             {connected && (
@@ -122,14 +232,38 @@ export default function LogsPage() {
               </span>
             )}
           </div>
-          <Button variant="outline" onClick={fetchLogs}>
-            Refresh
+          <Button variant="outline" onClick={() => fetchLogs(page, filter)} disabled={loading}>
+            {loading ? 'Loading...' : 'Refresh'}
           </Button>
         </div>
 
+        {/* Filter tabs */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {FILTER_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              variant={filter === option.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleFilterChange(option.value)}
+              title={option.description}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                {FILTER_OPTIONS.find(o => o.value === filter)?.label || 'Activity'}
+              </CardTitle>
+              {pagination && (
+                <span className="text-sm text-muted-foreground">
+                  {pagination.total} total events
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {logs.length === 0 ? (
@@ -145,7 +279,7 @@ export default function LogsPage() {
                   >
                     <div className="flex items-center justify-between sm:contents">
                       <Badge variant={getTypeBadgeVariant(log.type)} className="shrink-0">
-                        {log.type}
+                        {getTypeLabel(log.type)}
                       </Badge>
                       <time className="text-xs text-muted-foreground whitespace-nowrap sm:order-last">
                         {formatDate(log.createdAt)}
@@ -155,7 +289,7 @@ export default function LogsPage() {
                       <p className="text-sm break-words">{log.message}</p>
                       {log.details && (
                         <details className="mt-1">
-                          <summary className="text-xs text-muted-foreground cursor-pointer">
+                          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                             Details
                           </summary>
                           <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
@@ -166,6 +300,60 @@ export default function LogsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Pagination controls */}
+            {pagination && (
+              <div className="mt-6 flex items-center justify-between border-t pt-4">
+                <div className="flex items-center gap-2">
+                  {pagination.totalPages > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1 || loading}
+                    >
+                      Previous
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  {pagination.totalPages > 1 && (
+                    <span className="text-sm text-muted-foreground">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="pageSize" className="text-sm text-muted-foreground">
+                      Show:
+                    </label>
+                    <select
+                      id="pageSize"
+                      value={pageSize}
+                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {pagination.totalPages > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                      disabled={page >= pagination.totalPages || loading}
+                    >
+                      Next
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

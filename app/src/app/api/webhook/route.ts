@@ -173,6 +173,13 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Log the empty tray detection even though no action was taken
+        await createActivityLog({
+          type: 'tray_empty_detected',
+          message: `Detected empty tray: ${tray_entity_id} (no spool was assigned)`,
+          details: { trayId: tray_entity_id, reason: 'no_spool_assigned' },
+        });
+
         return NextResponse.json({
           status: 'ignored',
           reason: 'tray empty and no spool was assigned',
@@ -214,6 +221,17 @@ export async function POST(request: NextRequest) {
       // No auto-match - user needs to manually assign spool
       // Log what the printer detected for debugging
       console.log(`Tray ${tray_entity_id} changed but no matching spool found. Printer reports: name="${name}", material="${material}", tray_uuid="${tray_uuid}"`);
+
+      // Log to activity log so users can see all tray changes in the webapp
+      await createActivityLog({
+        type: 'tray_change_detected',
+        message: `Tray change detected: ${tray_entity_id} has filament but no matching spool`,
+        details: {
+          trayId: tray_entity_id,
+          printerReports: { name, material, tray_uuid },
+          action: 'manual_assignment_required',
+        },
+      });
 
       // Emit tray_change event so dashboard can refresh and show warning banner
       const updateEvent: SpoolUpdateEvent = {
