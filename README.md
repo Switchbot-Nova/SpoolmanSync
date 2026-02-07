@@ -235,6 +235,7 @@ docker compose --profile external up -d
 - Check that SpoolmanSync is accessible from Home Assistant's network
 
 ### QR scanner not working
+- **HTTPS required for remote access**: Browsers block camera access on insecure HTTP connections. If you're accessing SpoolmanSync from a different device (not `localhost`), you'll need to set up HTTPS (e.g., via a reverse proxy or [Tailscale](https://tailscale.com/kb/1153/enabling-https))
 - Ensure you've granted camera permissions in your browser
 - Try using a different camera if available
 - Use manual search as a fallback
