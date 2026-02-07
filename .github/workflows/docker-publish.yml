@@ -43,12 +43,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build and push main app image
+      # Build and push main app image (multi-arch: amd64 + arm64)
       - name: Build and push SpoolmanSync app
         uses: docker/build-push-action@v6
         with:
           context: ./app
           file: ./app/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.REGISTRY_GITHUB }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_APP }}:latest
@@ -56,12 +57,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Build and push Home Assistant image
+      # Build and push Home Assistant image (multi-arch: amd64 + arm64)
       - name: Build and push SpoolmanSync Home Assistant
         uses: docker/build-push-action@v6
         with:
           context: ./homeassistant
           file: ./homeassistant/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.REGISTRY_GITHUB }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_HA }}:latest
