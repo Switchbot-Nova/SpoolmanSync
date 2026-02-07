@@ -375,17 +375,23 @@ export function buildPrintStatusPattern(): RegExp {
  */
 export function buildAmsPattern(prefix: string): RegExp {
   const names = AMS_HUMIDITY_NAMES.join('|');
-  return new RegExp(`^sensor\\.${prefix}_ams_(\\d+|lite)_(?:${names})(?:_(\\d+))?$`);
+  // AMS number is optional - A1 with AMS Lite uses just "_ams_" without a number
+  return new RegExp(`^sensor\\.${prefix}_ams_(?:(\\d+|lite)_)?(?:${names})(?:_(\\d+))?$`);
 }
 
 /**
  * Build a regex pattern for AMS tray sensors
  * @param prefix - The printer prefix
- * @param amsNumber - The AMS unit number (1-4)
+ * @param amsNumber - The AMS unit number (1-4, or "1" for A1 without explicit number)
  * @param trayNum - The tray number (1-4)
  */
 export function buildTrayPattern(prefix: string, amsNumber: string, trayNum: number): RegExp {
   const names = TRAY_NAMES.join('|');
+  // For A1 with AMS Lite (amsNumber="1"), also match entities without explicit AMS number
+  // e.g., "sensor.schiller_ams_tray_1" in addition to "sensor.schiller_ams_1_tray_1"
+  if (amsNumber === '1') {
+    return new RegExp(`^sensor\\.${prefix}_ams_(?:1_)?(?:${names})_${trayNum}(?:_(\\d+))?$`);
+  }
   return new RegExp(`^sensor\\.${prefix}_ams_${amsNumber}_(?:${names})_${trayNum}(?:_(\\d+))?$`);
 }
 
@@ -513,26 +519,35 @@ export function getLocalizedEntityName(
  * Returns the AMS number if matched, null otherwise
  * e.g., "sensor.x1c_xxx_ams_1_humidity" -> "1"
  * e.g., "sensor.a1_ams_lite_indice_d_humidite" -> "lite"
+ * e.g., "sensor.schiller_ams_humidity" -> "1" (A1 AMS Lite without number defaults to 1)
  */
 export function matchAmsHumidityEntity(entityId: string): string | null {
   const names = AMS_HUMIDITY_NAMES.join('|');
-  const pattern = new RegExp(`^sensor\\..+_ams_(\\d+|lite)_(?:${names})(?:_\\d+)?$`);
+  // AMS number is optional - A1 with AMS Lite uses just "_ams_" without a number
+  const pattern = new RegExp(`^sensor\\..+_ams_(?:(\\d+|lite)_)?(?:${names})(?:_\\d+)?$`);
   const match = entityId.match(pattern);
-  return match ? match[1] : null;
+  if (match) {
+    // If no AMS number captured, default to "1" (single AMS unit like A1)
+    return match[1] || '1';
+  }
+  return null;
 }
 
 /**
  * Check if an entity ID is an AMS tray sensor (any prefix)
  * Returns { amsNumber, trayNumber } if matched, null otherwise
  * e.g., "sensor.x1c_xxx_ams_1_tray_2" -> { amsNumber: "1", trayNumber: 2 }
+ * e.g., "sensor.schiller_ams_tray_1" -> { amsNumber: "1", trayNumber: 1 } (A1 AMS Lite without number)
  */
 export function matchTrayEntity(entityId: string): { amsNumber: string; trayNumber: number } | null {
   const names = TRAY_NAMES.join('|');
-  const pattern = new RegExp(`^sensor\\..+_ams_(\\d+|lite)_(?:${names})_(\\d+)(?:_\\d+)?$`);
+  // AMS number is optional - A1 with AMS Lite uses just "_ams_tray_N" without a number
+  const pattern = new RegExp(`^sensor\\..+_ams_(?:(\\d+|lite)_)?(?:${names})_(\\d+)(?:_\\d+)?$`);
   const match = entityId.match(pattern);
   if (match) {
     return {
-      amsNumber: match[1],
+      // If no AMS number captured, default to "1" (single AMS unit like A1)
+      amsNumber: match[1] || '1',
       trayNumber: parseInt(match[2], 10),
     };
   }

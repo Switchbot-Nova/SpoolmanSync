@@ -582,16 +582,51 @@ export class HomeAssistantClient {
           amsStates = states.filter(s =>
             deviceEntities.includes(s.entity_id) && matchAmsHumidityEntity(s.entity_id)
           );
-          console.log(`Device fallback: ${deviceEntities.length} total entities, ${amsStates.length} AMS units`);
+          console.log(`Device fallback: ${deviceEntities.length} total entities, ${amsStates.length} AMS units (from humidity sensors)`);
+
+          // If still no AMS found via humidity sensors, try to infer from tray entities
+          // This handles A1 with AMS Lite which may not have humidity sensors
+          if (amsStates.length === 0) {
+            const amsNumbersFromTrays = new Set<string>();
+            for (const entityId of deviceEntities) {
+              const trayMatch = matchTrayEntity(entityId);
+              if (trayMatch) {
+                amsNumbersFromTrays.add(trayMatch.amsNumber);
+              }
+            }
+            if (amsNumbersFromTrays.size > 0) {
+              console.log(`Device fallback: found AMS units from tray entities: ${[...amsNumbersFromTrays].join(', ')}`);
+              // Create synthetic AMS entries using the first tray entity for each AMS number
+              for (const amsNum of amsNumbersFromTrays) {
+                const firstTray = states.find(s =>
+                  deviceEntities.includes(s.entity_id) &&
+                  matchTrayEntity(s.entity_id)?.amsNumber === amsNum
+                );
+                if (firstTray) {
+                  amsStates.push(firstTray);
+                }
+              }
+            }
+          }
         }
       }
 
       // Group AMS entities by their AMS number
       const amsByNumber = new Map<string, HAState[]>();
       for (const amsState of amsStates) {
-        // Try prefix-based pattern first, fall back to prefix-agnostic matcher
+        // Try prefix-based pattern first, fall back to prefix-agnostic matchers
+        // AMS number is optional in pattern - A1 with AMS Lite uses "_ams_" without a number
         const amsMatch = amsState.entity_id.match(amsPattern);
-        const amsNumber = amsMatch ? amsMatch[1] : matchAmsHumidityEntity(amsState.entity_id);
+        let amsNumber: string | null = amsMatch ? (amsMatch[1] || '1') : null;
+        // If prefix-based didn't match, try humidity matcher
+        if (!amsNumber) {
+          amsNumber = matchAmsHumidityEntity(amsState.entity_id);
+        }
+        // If still no match, try tray matcher (for A1 AMS Lite without humidity sensors)
+        if (!amsNumber) {
+          const trayMatch = matchTrayEntity(amsState.entity_id);
+          if (trayMatch) amsNumber = trayMatch.amsNumber;
+        }
         if (!amsNumber) continue;
         if (!amsByNumber.has(amsNumber)) {
           amsByNumber.set(amsNumber, []);
