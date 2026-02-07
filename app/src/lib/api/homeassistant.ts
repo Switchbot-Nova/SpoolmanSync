@@ -14,6 +14,13 @@ import {
   buildPrintWeightPattern,
   buildPrintProgressPattern,
   cleanFriendlyName,
+  // Prefix-agnostic matchers for device-based discovery
+  matchAmsHumidityEntity,
+  matchTrayEntity,
+  matchExternalSpoolEntity,
+  matchCurrentStageEntity,
+  matchPrintWeightEntity,
+  matchPrintProgressEntity,
 } from '@/lib/entity-patterns';
 
 export interface HAState {
@@ -437,6 +444,98 @@ export class HomeAssistantClient {
   }
 
   /**
+   * Render a Jinja2 template in Home Assistant
+   * Used for device-based entity discovery when entity ID prefixes don't match
+   */
+  async renderTemplate(template: string): Promise<string> {
+    // Can't use this.fetch() because /api/template returns plain text, not JSON
+    await this.ensureValidToken();
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/template`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ template }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`HA template API error: ${response.status} - ${error}`);
+    }
+
+    // The /api/template endpoint returns the rendered template as plain text
+    return response.text();
+  }
+
+  /**
+   * Get all entities from the printer and its related devices (AMS, External Spool)
+   *
+   * ha-bambulab creates separate devices for printer, each AMS, and external spool.
+   * The AMS and External Spool devices have a "via_device_id" that points to the printer device.
+   * (This shows as "Connected via [PrinterName]" in the HA UI)
+   *
+   * This method finds all sensor entities from:
+   * 1. The printer device itself
+   * 2. Any device whose via_device_id points to the printer (AMS units, external spool)
+   *
+   * This enables discovery even when entity ID prefixes don't match (e.g., user renamed entities).
+   */
+  async getRelatedDeviceEntities(printerEntityId: string): Promise<string[]> {
+    try {
+      // This Jinja template finds all sensor entities from the printer and its child devices:
+      // 1. Gets the device ID for the print_status entity (the printer)
+      // 2. Finds all sensor entities whose device is either:
+      //    a. The printer device itself, OR
+      //    b. A device whose via_device_id equals the printer's device ID (AMS, external spool)
+      // NOTE: Jinja2 requires namespace() to modify variables inside loops
+      const template = `
+{%- set printer_device_id = device_id('${printerEntityId}') -%}
+{%- set ns = namespace(entities=[]) -%}
+{%- if printer_device_id -%}
+  {%- for state in states.sensor -%}
+    {%- set entity_device_id = device_id(state.entity_id) -%}
+    {%- if entity_device_id -%}
+      {%- if entity_device_id == printer_device_id -%}
+        {%- set ns.entities = ns.entities + [state.entity_id] -%}
+      {%- else -%}
+        {%- set via_device = device_attr(entity_device_id, 'via_device_id') -%}
+        {%- if via_device == printer_device_id -%}
+          {%- set ns.entities = ns.entities + [state.entity_id] -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{{ ns.entities | tojson }}`.trim();
+
+      const result = await this.renderTemplate(template);
+
+      // Handle empty result
+      if (!result || result.trim() === '') {
+        console.log(`Device-based discovery: no device found for ${printerEntityId}`);
+        return [];
+      }
+
+      const entities = JSON.parse(result);
+      // Only log edge cases - successful discovery is logged by the caller
+      if (entities.length === 0) {
+        console.log(`Device-based discovery: device found but no related entities for ${printerEntityId}`);
+      }
+      return entities;
+    } catch (error) {
+      console.warn(`Device-based discovery failed for ${printerEntityId}:`, error);
+      return [];
+    }
+  }
+
+  /**
    * Discover Bambu Lab printers from HA entities
    */
   async discoverPrinters(): Promise<HAPrinter[]> {
@@ -464,7 +563,7 @@ export class HomeAssistantClient {
       // Group by AMS number and prefer highest suffix number (newer ha-bambulab versions use _2, _3, etc.)
       // Uses centralized localized patterns - see src/lib/entity-patterns.ts
       const amsPattern = buildAmsPattern(prefix);
-      const amsStates = states.filter(s => amsPattern.test(s.entity_id));
+      let amsStates = states.filter(s => amsPattern.test(s.entity_id));
 
       // Helper to extract entity suffix number (0 if no suffix)
       const getEntitySuffix = (entityId: string): number => {
@@ -472,12 +571,28 @@ export class HomeAssistantClient {
         return suffixMatch ? parseInt(suffixMatch[1], 10) : 0;
       };
 
+      // If prefix-based discovery found nothing, fall back to device-based discovery
+      // This handles cases where users renamed entity IDs causing prefix mismatches
+      let deviceEntities: string[] = [];
+      if (amsStates.length === 0) {
+        console.log(`Prefix "${prefix}" found no AMS, using device-based fallback...`);
+        deviceEntities = await this.getRelatedDeviceEntities(printerState.entity_id);
+        if (deviceEntities.length > 0) {
+          // Find AMS humidity entities using prefix-agnostic matching
+          amsStates = states.filter(s =>
+            deviceEntities.includes(s.entity_id) && matchAmsHumidityEntity(s.entity_id)
+          );
+          console.log(`Device fallback: ${deviceEntities.length} total entities, ${amsStates.length} AMS units`);
+        }
+      }
+
       // Group AMS entities by their AMS number
       const amsByNumber = new Map<string, HAState[]>();
       for (const amsState of amsStates) {
+        // Try prefix-based pattern first, fall back to prefix-agnostic matcher
         const amsMatch = amsState.entity_id.match(amsPattern);
-        if (!amsMatch) continue;
-        const amsNumber = amsMatch[1];
+        const amsNumber = amsMatch ? amsMatch[1] : matchAmsHumidityEntity(amsState.entity_id);
+        if (!amsNumber) continue;
         if (!amsByNumber.has(amsNumber)) {
           amsByNumber.set(amsNumber, []);
         }
@@ -513,7 +628,16 @@ export class HomeAssistantClient {
         // Uses centralized localized patterns - see src/lib/entity-patterns.ts
         for (let trayNum = 1; trayNum <= 4; trayNum++) {
           const trayPattern = buildTrayPattern(prefix, amsNumber, trayNum);
-          const trayCandidates = states.filter(s => trayPattern.test(s.entity_id));
+          let trayCandidates = states.filter(s => trayPattern.test(s.entity_id));
+
+          // Fall back to device-based discovery if prefix-based failed
+          if (trayCandidates.length === 0 && deviceEntities.length > 0) {
+            trayCandidates = states.filter(s => {
+              if (!deviceEntities.includes(s.entity_id)) return false;
+              const trayMatch = matchTrayEntity(s.entity_id);
+              return trayMatch && trayMatch.amsNumber === amsNumber && trayMatch.trayNumber === trayNum;
+            });
+          }
 
           if (trayCandidates.length > 0) {
             // Pick the best: prefer available, then prefer highest suffix number
@@ -549,7 +673,14 @@ export class HomeAssistantClient {
       // Find external spool using centralized localized patterns
       // See src/lib/entity-patterns.ts to add support for more languages
       const extPattern = buildExternalSpoolPattern(prefix);
-      const extCandidates = states.filter(s => extPattern.test(s.entity_id));
+      let extCandidates = states.filter(s => extPattern.test(s.entity_id));
+
+      // Fall back to device-based discovery if prefix-based failed
+      if (extCandidates.length === 0 && deviceEntities.length > 0) {
+        extCandidates = states.filter(s =>
+          deviceEntities.includes(s.entity_id) && matchExternalSpoolEntity(s.entity_id)
+        );
+      }
 
       if (extCandidates.length > 0) {
         // Pick the best: prefer available, then prefer highest suffix number
@@ -580,19 +711,37 @@ export class HomeAssistantClient {
       // Discover additional entities needed for automation YAML generation
       // These are found dynamically to handle localized entity names
       const currentStagePattern = buildCurrentStagePattern(prefix);
-      const currentStageEntity = states.find(s => currentStagePattern.test(s.entity_id));
+      let currentStageEntity = states.find(s => currentStagePattern.test(s.entity_id));
+      // Fall back to device-based discovery
+      if (!currentStageEntity && deviceEntities.length > 0) {
+        currentStageEntity = states.find(s =>
+          deviceEntities.includes(s.entity_id) && matchCurrentStageEntity(s.entity_id)
+        );
+      }
       if (currentStageEntity) {
         printer.current_stage_entity = currentStageEntity.entity_id;
       }
 
       const printWeightPattern = buildPrintWeightPattern(prefix);
-      const printWeightEntity = states.find(s => printWeightPattern.test(s.entity_id));
+      let printWeightEntity = states.find(s => printWeightPattern.test(s.entity_id));
+      // Fall back to device-based discovery
+      if (!printWeightEntity && deviceEntities.length > 0) {
+        printWeightEntity = states.find(s =>
+          deviceEntities.includes(s.entity_id) && matchPrintWeightEntity(s.entity_id)
+        );
+      }
       if (printWeightEntity) {
         printer.print_weight_entity = printWeightEntity.entity_id;
       }
 
       const printProgressPattern = buildPrintProgressPattern(prefix);
-      const printProgressEntity = states.find(s => printProgressPattern.test(s.entity_id));
+      let printProgressEntity = states.find(s => printProgressPattern.test(s.entity_id));
+      // Fall back to device-based discovery
+      if (!printProgressEntity && deviceEntities.length > 0) {
+        printProgressEntity = states.find(s =>
+          deviceEntities.includes(s.entity_id) && matchPrintProgressEntity(s.entity_id)
+        );
+      }
       if (printProgressEntity) {
         printer.print_progress_entity = printProgressEntity.entity_id;
       }

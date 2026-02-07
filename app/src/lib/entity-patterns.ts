@@ -501,3 +501,76 @@ export function getLocalizedEntityName(
   const language = detectLanguageFromEntity(printerEntityId);
   return LOCALIZED_ENTITIES[language][entityType];
 }
+
+// =============================================================================
+// Prefix-agnostic entity matching functions
+// Used for device-based discovery when entity ID prefixes don't match
+// (e.g., user renamed print_status entity but not AMS entities)
+// =============================================================================
+
+/**
+ * Check if an entity ID is an AMS humidity sensor (any prefix)
+ * Returns the AMS number if matched, null otherwise
+ * e.g., "sensor.x1c_xxx_ams_1_humidity" -> "1"
+ * e.g., "sensor.a1_ams_lite_indice_d_humidite" -> "lite"
+ */
+export function matchAmsHumidityEntity(entityId: string): string | null {
+  const names = AMS_HUMIDITY_NAMES.join('|');
+  const pattern = new RegExp(`^sensor\\..+_ams_(\\d+|lite)_(?:${names})(?:_\\d+)?$`);
+  const match = entityId.match(pattern);
+  return match ? match[1] : null;
+}
+
+/**
+ * Check if an entity ID is an AMS tray sensor (any prefix)
+ * Returns { amsNumber, trayNumber } if matched, null otherwise
+ * e.g., "sensor.x1c_xxx_ams_1_tray_2" -> { amsNumber: "1", trayNumber: 2 }
+ */
+export function matchTrayEntity(entityId: string): { amsNumber: string; trayNumber: number } | null {
+  const names = TRAY_NAMES.join('|');
+  const pattern = new RegExp(`^sensor\\..+_ams_(\\d+|lite)_(?:${names})_(\\d+)(?:_\\d+)?$`);
+  const match = entityId.match(pattern);
+  if (match) {
+    return {
+      amsNumber: match[1],
+      trayNumber: parseInt(match[2], 10),
+    };
+  }
+  return null;
+}
+
+/**
+ * Check if an entity ID is an external spool sensor (any prefix)
+ */
+export function matchExternalSpoolEntity(entityId: string): boolean {
+  const names = EXTERNAL_SPOOL_NAMES.join('|');
+  const pattern = new RegExp(`^sensor\\..+_(${names})(?:_\\d+)?$`);
+  return pattern.test(entityId);
+}
+
+/**
+ * Check if an entity ID is a current_stage sensor (any prefix)
+ */
+export function matchCurrentStageEntity(entityId: string): boolean {
+  const names = CURRENT_STAGE_NAMES.join('|');
+  const pattern = new RegExp(`^sensor\\..+_(${names})(?:_\\d+)?$`);
+  return pattern.test(entityId);
+}
+
+/**
+ * Check if an entity ID is a print_weight sensor (any prefix)
+ */
+export function matchPrintWeightEntity(entityId: string): boolean {
+  const names = PRINT_WEIGHT_NAMES.join('|');
+  const pattern = new RegExp(`^sensor\\..+_(${names})(?:_\\d+)?$`);
+  return pattern.test(entityId);
+}
+
+/**
+ * Check if an entity ID is a print_progress sensor (any prefix)
+ */
+export function matchPrintProgressEntity(entityId: string): boolean {
+  const names = PRINT_PROGRESS_NAMES.join('|');
+  const pattern = new RegExp(`^sensor\\..+_(${names})(?:_\\d+)?$`);
+  return pattern.test(entityId);
+}
