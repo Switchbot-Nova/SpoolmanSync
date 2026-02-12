@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner';
 import type { Spool } from '@/lib/api/spoolman';
 import { QRCodeGenerator } from '@/components/qr-code-generator';
+import { NFCWriter } from '@/components/nfc-writer';
 
 interface TrayOption {
   id: string;
@@ -262,6 +263,29 @@ function ScanPageContent() {
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
               No spools found. Add spools to Spoolman to generate QR labels.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* NFC Tag Writer */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Write NFC Tag</CardTitle>
+          <CardDescription>
+            Write a spool link to an NFC sticker tag. Tap the tag with your phone to quickly assign to an AMS tray.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {spoolsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
+          ) : allSpools.length > 0 ? (
+            <NFCWriter spools={allSpools} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No spools found. Add spools to Spoolman to write NFC tags.
             </p>
           )}
         </CardContent>

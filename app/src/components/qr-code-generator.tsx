@@ -411,7 +411,7 @@ export function QRCodeGenerator({ spools }: QRCodeGeneratorProps) {
           <p className="text-xs text-muted-foreground text-center no-print">
             Scan this QR code with your phone camera to quickly assign this spool to an AMS tray.
           </p>
-          <p className="text-xs text-muted-foreground/70 text-center no-print font-mono truncate">
+          <p className="text-xs text-muted-foreground/70 text-center no-print font-mono break-all">
             {qrUrl}
           </p>
         </div>
