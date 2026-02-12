@@ -123,3 +123,98 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for QR code labels */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Hide everything visually but keep in flow initially */
+  body > * {
+    visibility: hidden !important;
+    position: absolute !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* The label container needs to be visible and fill the page */
+  .qr-label-printable {
+    visibility: visible !important;
+    position: fixed !important;
+    left: var(--print-margin, 2mm) !important;
+    top: var(--print-margin, 2mm) !important;
+    width: calc(100vw - var(--print-margin, 2mm) * 2) !important;
+    height: calc(100vh - var(--print-margin, 2mm) * 2) !important;
+    overflow: hidden !important;
+    z-index: 999999 !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-sizing: border-box !important;
+  }
+
+  .qr-label-printable * {
+    visibility: visible !important;
+  }
+
+  /* Scale QR code - limit to 50% of width so text has room */
+  .qr-label-printable .qr-code-svg {
+    width: auto !important;
+    height: 100% !important;
+    max-width: 50vw !important;
+    max-height: calc(100vh - var(--print-margin, 2mm) * 2 - 16px) !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Scale text proportionally with page height - larger sizes */
+  .qr-label-printable .label-text-vendor {
+    font-size: calc(var(--font-scale, 1) * 8vh) !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .qr-label-printable .label-text-name {
+    font-size: calc(var(--font-scale, 1) * 6vh) !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .qr-label-printable .label-text-material {
+    font-size: calc(var(--font-scale, 1) * 6vh) !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .qr-label-printable .label-text-id {
+    font-size: calc(var(--font-scale, 1) * 5vh) !important;
+    line-height: 1.2 !important;
+  }
+
+  .qr-label-printable .label-color-dot {
+    width: calc(var(--font-scale, 1) * 6vh) !important;
+    height: calc(var(--font-scale, 1) * 6vh) !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

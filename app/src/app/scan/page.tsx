@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { Spool } from '@/lib/api/spoolman';
+import { QRCodeGenerator } from '@/components/qr-code-generator';
 
 interface TrayOption {
   id: string;
@@ -29,11 +30,13 @@ function ScanPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [spool, setSpool] = useState<Spool | null>(null);
+  const [allSpools, setAllSpools] = useState<Spool[]>([]);
   const [trays, setTrays] = useState<TrayOption[]>([]);
   const [selectedTray, setSelectedTray] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manualBarcode, setManualBarcode] = useState('');
+  const [spoolsLoading, setSpoolsLoading] = useState(true);
 
   const handleScan = useCallback(async (scannedData: string) => {
     setLoading(true);
@@ -118,6 +121,24 @@ function ScanPageContent() {
     fetchTrays();
   }, []);
 
+  // Fetch all spools for QR code generator
+  useEffect(() => {
+    const fetchAllSpools = async () => {
+      try {
+        const res = await fetch('/api/spools');
+        if (res.ok) {
+          const data = await res.json();
+          setAllSpools(data.spools || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch spools:', err);
+      } finally {
+        setSpoolsLoading(false);
+      }
+    };
+    fetchAllSpools();
+  }, []);
+
   const fetchTrays = async () => {
     try {
       const res = await fetch('/api/printers');
@@ -190,7 +211,7 @@ function ScanPageContent() {
         <CardHeader>
           <CardTitle>Scan QR Code</CardTitle>
           <CardDescription>
-            Point your camera at a Spoolman QR code or spool barcode
+            Point your camera at a Spoolman QR code or Spoolman barcode
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,13 +227,13 @@ function ScanPageContent() {
         <CardHeader>
           <CardTitle>Manual Entry</CardTitle>
           <CardDescription>
-            Enter a barcode or Spoolman spool ID manually
+            Enter a Spoolman barcode or spool ID manually
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleManualSubmit} className="flex gap-2">
             <Input
-              placeholder="Enter spool ID, barcode, or web+spoolman:s-123"
+              placeholder="Enter spool ID, Spoolman barcode, or web+spoolman:s-123"
               value={manualBarcode}
               onChange={(e) => setManualBarcode(e.target.value)}
             />
@@ -220,6 +241,29 @@ function ScanPageContent() {
               {loading ? 'Looking up...' : 'Look up'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* QR Code Generator */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Generate QR Label</CardTitle>
+          <CardDescription>
+            Create a printable QR code label for a spool. Scan with your phone camera to quickly assign to an AMS tray.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {spoolsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
+          ) : allSpools.length > 0 ? (
+            <QRCodeGenerator spools={allSpools} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No spools found. Add spools to Spoolman to generate QR labels.
+            </p>
+          )}
         </CardContent>
       </Card>
 
