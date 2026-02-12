@@ -16,6 +16,8 @@ SpoolmanSync automatically tracks which filament spools are loaded in your Bambu
 |---------|:------------:|:---------------:|
 | Web UI for spool assignment | ✅ | ❌ |
 | QR/Barcode scanning | ✅ | ❌ |
+| Printable QR code labels | ✅ | ❌ |
+| NFC tag writing | ✅ | ❌ |
 | Bundled Home Assistant option | ✅ | ❌ |
 | No YAML editing required | ✅ | ❌ |
 | Multi-AMS support | ✅ | Limited |
@@ -28,6 +30,8 @@ SpoolmanSync automatically tracks which filament spools are loaded in your Bambu
 - **Dashboard** - View all your printers, AMS units, and tray assignments at a glance
 - **Spool Assignment** - Click any tray to assign a spool from your Spoolman inventory
 - **QR Code Scanning** - Scan Spoolman QR codes or custom barcodes to quickly look up and assign spools
+- **QR Label Generation** - Create and print QR code labels for your spools. Scan with your phone camera to quickly assign to AMS trays
+- **NFC Tag Writing** - Write spool links to NFC sticker tags. Tap with your phone to assign spools (Android only: Chrome, Edge, Opera, Samsung Internet)
 - **Bambu Cloud Login** - Add printers by logging in with your Bambu Cloud account
 - **Bundled Home Assistant** - Includes a pre-configured Home Assistant with ha-bambulab integration
 - **Webhook Integration** - Receives tray change events from Home Assistant automations
@@ -239,6 +243,13 @@ docker compose --profile external up -d
 - Ensure you've granted camera permissions in your browser
 - Try using a different camera if available
 - Use manual search as a fallback
+
+### NFC tag writing not working
+- **Android only**: Web NFC is only supported on Android devices with Chrome, Edge, Opera, or Samsung Internet browsers
+- **Not supported**: iOS (any browser), Firefox, and Brave do not support Web NFC
+- If NFC is unavailable, SpoolmanSync shows a URL template you can use with a dedicated NFC writing app
+- Make sure NFC is enabled in your device settings
+- Use NTAG213, NTAG215, or NTAG216 NFC sticker tags
 
 ---
 
