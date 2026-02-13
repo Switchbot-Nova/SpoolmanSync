@@ -36,12 +36,12 @@ function detectTrayMismatch(tray: HATray, assignedSpool: Spool): MismatchInfo | 
   }
 
   const printerMaterial = tray.material?.toUpperCase() || '';
-  const spoolMaterial = assignedSpool.filament.material.toUpperCase();
+  const spoolMaterial = assignedSpool.filament?.material?.toUpperCase() || '';
 
   // Get hex colors - RFID may have alpha channel (8 chars), Spoolman has 6 chars
   // Compare only first 6 characters (RGB, ignore alpha)
   const rfidColor = tray.color?.replace('#', '').toLowerCase().substring(0, 6) || '';
-  const spoolColor = assignedSpool.filament.color_hex.toLowerCase().substring(0, 6);
+  const spoolColor = assignedSpool.filament?.color_hex?.toLowerCase().substring(0, 6) || '';
 
   // Check for material mismatch
   const materialMismatch = printerMaterial && spoolMaterial && printerMaterial !== spoolMaterial;
@@ -65,7 +65,7 @@ function detectTrayMismatch(tray: HATray, assignedSpool: Spool): MismatchInfo | 
       color: `#${rfidColor}`,
     },
     spoolmanHas: {
-      material: assignedSpool.filament.material,
+      material: assignedSpool.filament?.material || '',
       color: `#${spoolColor}`,
     },
     message: `Mismatch detected: ${mismatchType}`,
