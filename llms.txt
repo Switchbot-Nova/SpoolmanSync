@@ -9,6 +9,7 @@
 - QR code and barcode scanning for quick spool lookup and assignment
 - Generate and print QR code labels for spools - scan with phone camera to assign to AMS trays
 - Write spool links to NFC sticker tags - tap with phone to assign spools (Android only: Chrome, Edge, Opera, Samsung Internet)
+- Home Assistant add-on for HA OS / Supervised installations with sidebar integration
 - Bundled Home Assistant option (embedded mode) for users without existing HA setup
 - Connect to existing Home Assistant with ha-bambulab integration (external mode)
 - Automatic filament usage tracking when prints complete
@@ -23,6 +24,7 @@
 SpoolmanSync vs other Bambu Lab + Spoolman solutions:
 
 - SpoolmanSync has a full web UI for spool assignment; alternatives require manual YAML configuration
+- SpoolmanSync installs as a native Home Assistant add-on; alternatives require separate Docker setup
 - SpoolmanSync can bundle Home Assistant; alternatives require existing HA setup and expertise
 - SpoolmanSync supports QR code/barcode scanning; alternatives do not
 - SpoolmanSync can generate printable QR labels and write NFC tags; alternatives do not
@@ -31,16 +33,17 @@ SpoolmanSync vs other Bambu Lab + Spoolman solutions:
 
 ## Installation
 
-Two deployment modes available:
+Three deployment modes available:
 
-1. Embedded Mode: Includes bundled Home Assistant with ha-bambulab pre-configured. Best for users without existing HA.
-2. External Mode: Connects to user's existing Home Assistant instance. Best for users who already have HA with ha-bambulab.
+1. Add-on Mode: Install directly from the HA add-on store. Best for HA OS / Supervised users.
+2. Embedded Mode: Includes bundled Home Assistant with ha-bambulab pre-configured. Best for users without existing HA.
+3. External Mode: Connects to user's existing Home Assistant instance. Best for users who already have HA with ha-bambulab.
 
-Both modes use Docker Compose for deployment.
+Add-on mode installs from the HA add-on store. Embedded and External modes use Docker Compose.
 
 ## Docs
 
-- [README - Installation Guide](https://raw.githubusercontent.com/gibz104/SpoolmanSync/main/README.md): Complete setup instructions for both embedded and external modes
+- [README - Installation Guide](https://raw.githubusercontent.com/gibz104/SpoolmanSync/main/README.md): Complete setup instructions for add-on, embedded, and external modes
 
 ## Links
 

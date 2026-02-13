@@ -18,6 +18,7 @@ SpoolmanSync automatically tracks which filament spools are loaded in your Bambu
 | QR/Barcode scanning | ✅ | ❌ |
 | Printable QR code labels | ✅ | ❌ |
 | NFC tag writing | ✅ | ❌ |
+| Home Assistant add-on | ✅ | ❌ |
 | Bundled Home Assistant option | ✅ | ❌ |
 | No YAML editing required | ✅ | ❌ |
 | Multi-AMS support | ✅ | Limited |
@@ -34,13 +35,32 @@ SpoolmanSync automatically tracks which filament spools are loaded in your Bambu
 - **NFC Tag Writing** - Write spool links to NFC sticker tags. Tap with your phone to assign spools (Android only: Chrome, Edge, Opera, Samsung Internet)
 - **AMS 2 Pro & AMS HT Support** - Works with all AMS hardware variants
 - **Bambu Cloud Login** - Add printers by logging in with your Bambu Cloud account
+- **Home Assistant Add-on** - Install directly from the HA add-on store with sidebar integration
 - **Bundled Home Assistant** - Includes a pre-configured Home Assistant with ha-bambulab integration
 - **Webhook Integration** - Receives tray change events from Home Assistant automations
 - **Activity Logging** - Track all spool changes and sync events
 
+## Home Assistant Add-on (Recommended for HA OS users)
+
+If you're running Home Assistant OS or Supervised, install SpoolmanSync directly as an add-on:
+
+1. Add this repository to your add-on store:
+   - Go to **Settings** → **Add-ons** → **Add-on Store**
+   - Click **⋮** (top right) → **Repositories**
+   - Add: `https://github.com/gibz104/SpoolmanSync`
+2. Find **SpoolmanSync** in the store and click **Install**
+3. Start the add-on and enable **Show in sidebar**
+4. Open SpoolmanSync from the sidebar — your printers are automatically discovered from ha-bambulab
+5. Configure your Spoolman URL in **Settings** (or in the add-on configuration tab)
+6. Go to **Automations** and click **Configure Automations**
+
+**Requirements:** [ha-bambulab](https://github.com/greghesp/ha-bambulab) integration installed via [HACS](https://hacs.xyz/) and [Spoolman](https://github.com/Donkie/Spoolman) running and accessible from Home Assistant.
+
+---
+
 ## Quick Install (Pre-built Images)
 
-The fastest way to get started using pre-built Docker images:
+The fastest way to get started with Docker using pre-built images:
 
 ```bash
 # Download the compose file
@@ -74,6 +94,7 @@ SpoolmanSync requires a Docker Compose profile. Choose based on your setup:
 
 | Mode | Command | Best For |
 |------|---------|----------|
+| **Add-on** | [See above](#home-assistant-add-on-recommended-for-ha-os-users) | HA OS / Supervised users |
 | **Embedded** | `docker compose --profile embedded up -d` | Most users - includes bundled Home Assistant |
 | **External** | `docker compose --profile external up -d` | Users who already have Home Assistant with ha-bambulab |
 
