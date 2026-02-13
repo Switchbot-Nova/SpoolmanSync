@@ -32,6 +32,7 @@ SpoolmanSync automatically tracks which filament spools are loaded in your Bambu
 - **QR Code Scanning** - Scan Spoolman QR codes or custom barcodes to quickly look up and assign spools
 - **QR Label Generation** - Create and print QR code labels for your spools. Scan with your phone camera to quickly assign to AMS trays
 - **NFC Tag Writing** - Write spool links to NFC sticker tags. Tap with your phone to assign spools (Android only: Chrome, Edge, Opera, Samsung Internet)
+- **AMS 2 Pro & AMS HT Support** - Works with all AMS hardware variants
 - **Bambu Cloud Login** - Add printers by logging in with your Bambu Cloud account
 - **Bundled Home Assistant** - Includes a pre-configured Home Assistant with ha-bambulab integration
 - **Webhook Integration** - Receives tray change events from Home Assistant automations

@@ -13,8 +13,9 @@
 - Connect to existing Home Assistant with ha-bambulab integration (external mode)
 - Automatic filament usage tracking when prints complete
 - Works with ALL filament brands (Polymaker, Hatchbox, eSUN, etc.), not just Bambu Lab branded spools
-- Multi-language Home Assistant support (English, German, Dutch, Spanish, Italian)
+- Multi-language Home Assistant support (17 languages including English, German, Dutch, Spanish, Italian, French, and more)
 - External spool support for printing without AMS
+- AMS 2 Pro and AMS HT hardware support
 - Activity logging for tracking all spool changes and sync events
 
 ## Comparison to Alternatives
