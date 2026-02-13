@@ -246,6 +246,7 @@ docker compose --profile external up -d
 - Use manual search as a fallback
 
 ### NFC tag writing not working
+- **HTTPS required**: Web NFC requires a secure context. If you're not on `localhost`, you'll need HTTPS (e.g., via a reverse proxy or [Tailscale](https://tailscale.com/kb/1153/enabling-https))
 - **Android only**: Web NFC is only supported on Android devices with Chrome, Edge, Opera, or Samsung Internet browsers
 - **Not supported**: iOS (any browser), Firefox, and Brave do not support Web NFC
 - If NFC is unavailable, SpoolmanSync shows a URL template you can use with a dedicated NFC writing app
