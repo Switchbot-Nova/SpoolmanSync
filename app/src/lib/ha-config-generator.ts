@@ -397,29 +397,47 @@ ${trayEntityIds.map(id => `        - ${id}`).join('\n')}
 /**
  * Build Jinja2 template to detect active tray from all AMS units
  * Returns composite ID: 0 = external, 11-14 = AMS1, 21-24 = AMS2, etc.
+ *
+ * Note: The external spool entity in ha-bambulab does NOT have an 'active'
+ * attribute (only AMS trays have it). So external spool detection works by:
+ * - No AMS trays: external spool is active when it has filament loaded
+ * - With AMS trays: external spool is active when no AMS tray has active=true
+ *   and external spool has filament loaded
  */
 function buildActiveTrayDetection(allTrays: TrayInfo[]): string {
   const checks: string[] = [];
 
-  // First check external spool if present
   const externalTray = allTrays.find(t => t.compositeId === 0);
+  const amsTrays = allTrays.filter(t => t.amsNumber > 0).sort((a, b) => a.compositeId - b.compositeId);
+
   if (externalTray) {
-    // External spool needs extra check - ignore if name is "Empty" to prevent false positives
-    checks.push(`
-          {# Check external spool (composite ID = 0) - only if it has configured filament #}
+    if (amsTrays.length > 0) {
+      // AMS + external spool: external is active when no AMS tray has active=true
+      // Uses Jinja2 namespace() to track state across loop iterations
+      const amsActiveChecks = amsTrays.map(t =>
+        `{%- if state_attr('${t.entityId}', 'active') in [true, 'true', 'True'] -%}{%- set ns.ams_active = true -%}{%- endif -%}`
+      ).join('\n          ');
+      checks.push(`
+          {# External spool - active when no AMS tray is active and filament is loaded #}
+          {%- set ns = namespace(ams_active=false) -%}
+          ${amsActiveChecks}
           {% set ext_name = state_attr('${externalTray.entityId}', 'name') | default('') | string | lower | trim %}
-          {% if state_attr('${externalTray.entityId}', 'active') in [true, 'true', 'True']
-             and ext_name not in ['empty', '', 'unknown'] %}
+          {% if not ns.ams_active and ext_name not in ['empty', '', 'unknown'] %}
             0
           {% endif %}`);
+    } else {
+      // External spool only (no AMS) - always active when filament is loaded
+      checks.push(`
+          {# External spool (only tray) - active when filament is loaded #}
+          {% set ext_name = state_attr('${externalTray.entityId}', 'name') | default('') | string | lower | trim %}
+          {% if ext_name not in ['empty', '', 'unknown'] %}
+            0
+          {% endif %}`);
+    }
   }
 
   // Check each AMS tray explicitly using discovered entity IDs
-  // This ensures correct entity IDs including any suffixes (_2, _3, etc.)
-  const amsTrays = allTrays.filter(t => t.amsNumber > 0).sort((a, b) => a.compositeId - b.compositeId);
-
   if (amsTrays.length > 0) {
-    // Group by AMS number for comments
     const amsNumbers = [...new Set(amsTrays.map(t => t.amsNumber))].sort();
 
     for (const amsNumber of amsNumbers) {
@@ -540,7 +558,7 @@ template:
         availability: >
           {{ expand([
             ${availabilityEntities.join(',\n            ')}
-          ]) | selectattr('attributes.active','defined') | list | count > 0 }}
+          ]) | rejectattr('state', 'eq', 'unavailable') | list | count > 0 }}
 `;
 }
 
