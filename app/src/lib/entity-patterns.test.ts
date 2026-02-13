@@ -55,6 +55,16 @@ const humidityTestCases: TestCase[] = [
   { name: 'AMS HT 128 German', entityId: 'sensor.printer_ams_128_luftfeuchtigkeit', expected: '128' },
   { name: 'AMS HT standalone German', entityId: 'sensor.printer_ams_ht_luftfeuchtigkeit', expected: 'ht' },
 
+  // Renamed entities with no printer prefix (GitHub Issue #9 comment)
+  { name: 'No prefix - ams_humidity', entityId: 'sensor.ams_humidity', expected: '1' },
+  { name: 'No prefix - ams_1_humidity', entityId: 'sensor.ams_1_humidity', expected: '1' },
+  { name: 'No prefix - ams_2_humidity', entityId: 'sensor.ams_2_humidity', expected: '2' },
+  { name: 'No prefix - ams_lite_humidity', entityId: 'sensor.ams_lite_humidity', expected: 'lite' },
+  { name: 'No prefix - ams_2_pro_humidity', entityId: 'sensor.ams_2_pro_humidity', expected: '2' },
+  { name: 'No prefix - ams_128_humidity', entityId: 'sensor.ams_128_humidity', expected: '128' },
+  { name: 'No prefix - ams_ht_humidity', entityId: 'sensor.ams_ht_humidity', expected: 'ht' },
+  { name: 'No prefix - ams_luftfeuchtigkeit', entityId: 'sensor.ams_luftfeuchtigkeit', expected: '1' },
+
   // Edge cases - should NOT match
   { name: 'Invalid - no ams', entityId: 'sensor.x1c_humidity', expected: null },
   { name: 'Invalid - wrong type', entityId: 'sensor.x1c_ams_1_temperature', expected: null },
@@ -88,6 +98,16 @@ const trayTestCases: TrayTestCase[] = [
   { name: 'AMS HT standalone Tray 2', entityId: 'sensor.a1_mini_ams_ht_tray_2', expected: { amsNumber: 'ht', trayNumber: 2 } },
   { name: 'AMS HT 128 Slot German', entityId: 'sensor.printer_ams_128_slot_1', expected: { amsNumber: '128', trayNumber: 1 } },
   { name: 'AMS HT standalone Slot', entityId: 'sensor.printer_ams_ht_slot_4', expected: { amsNumber: 'ht', trayNumber: 4 } },
+
+  // Renamed entities with no printer prefix (GitHub Issue #9 comment)
+  { name: 'No prefix - ams_tray_1', entityId: 'sensor.ams_tray_1', expected: { amsNumber: '1', trayNumber: 1 } },
+  { name: 'No prefix - ams_tray_4', entityId: 'sensor.ams_tray_4', expected: { amsNumber: '1', trayNumber: 4 } },
+  { name: 'No prefix - ams_1_tray_2', entityId: 'sensor.ams_1_tray_2', expected: { amsNumber: '1', trayNumber: 2 } },
+  { name: 'No prefix - ams_2_tray_3', entityId: 'sensor.ams_2_tray_3', expected: { amsNumber: '2', trayNumber: 3 } },
+  { name: 'No prefix - ams_2_pro_tray_1', entityId: 'sensor.ams_2_pro_tray_1', expected: { amsNumber: '2', trayNumber: 1 } },
+  { name: 'No prefix - ams_128_tray_1', entityId: 'sensor.ams_128_tray_1', expected: { amsNumber: '128', trayNumber: 1 } },
+  { name: 'No prefix - ams_ht_tray_2', entityId: 'sensor.ams_ht_tray_2', expected: { amsNumber: 'ht', trayNumber: 2 } },
+  { name: 'No prefix - ams_slot_1 German', entityId: 'sensor.ams_slot_1', expected: { amsNumber: '1', trayNumber: 1 } },
 
   // Edge cases - should NOT match
   { name: 'Invalid - no tray number', entityId: 'sensor.x1c_ams_1_tray', expected: null },
@@ -192,6 +212,21 @@ const multiAmsTestCases: MultiAmsTestCase[] = [
       'sensor.printer_ams_128_humidity',
     ],
     expectedAmsNumbers: ['1', '128'],
+  },
+  {
+    name: 'No prefix: single AMS (renamed entities)',
+    entities: [
+      'sensor.ams_humidity',
+    ],
+    expectedAmsNumbers: ['1'],
+  },
+  {
+    name: 'No prefix: multiple AMS units (renamed entities)',
+    entities: [
+      'sensor.ams_1_humidity',
+      'sensor.ams_2_humidity',
+    ],
+    expectedAmsNumbers: ['1', '2'],
   },
 ];
 
@@ -310,6 +345,41 @@ test('GitHub Issue #9: All entities should be detected', () => {
     if (!trayResult) throw new Error(`Tray ${i} entity not detected`);
     if (trayResult.trayNumber !== i) throw new Error(`Expected tray ${i}, got ${trayResult.trayNumber}`);
   }
+});
+
+console.log('\n=== GitHub Issue #9 Comment - Renamed Entities (No Prefix) ===\n');
+
+// Exact entity IDs from the user's screenshot
+const githubIssue9CommentEntities = [
+  'sensor.ams_humidity',
+  'sensor.ams_tray_1',
+  'sensor.ams_dry_pods_humidity',
+  'sensor.ams_dry_pods_temperature',
+  'sensor.ams_humidity_index',
+  'sensor.ams_remaining_drying_time',
+  'sensor.ams_temperature',
+];
+
+test('GitHub Issue #9 Comment: No-prefix humidity sensor detection', () => {
+  const result = matchAmsHumidityEntity('sensor.ams_humidity');
+  assertEqual(result, '1');
+});
+
+test('GitHub Issue #9 Comment: No-prefix tray detection', () => {
+  const result = matchTrayEntity('sensor.ams_tray_1');
+  assertEqual(result, { amsNumber: '1', trayNumber: 1 });
+});
+
+test('GitHub Issue #9 Comment: humidity_index should NOT match (not a standard humidity name)', () => {
+  // "humidity_index" is not in AMS_HUMIDITY_NAMES - it's a separate entity
+  const result = matchAmsHumidityEntity('sensor.ams_humidity_index');
+  assertEqual(result, null);
+});
+
+test('GitHub Issue #9 Comment: Non-AMS entities should not match', () => {
+  assertEqual(matchAmsHumidityEntity('sensor.ams_dry_pods_humidity'), null);
+  assertEqual(matchAmsHumidityEntity('sensor.ams_temperature'), null);
+  assertEqual(matchTrayEntity('sensor.ams_remaining_drying_time'), null);
 });
 
 console.log('\n=== Multi-AMS Configuration Tests ===\n');

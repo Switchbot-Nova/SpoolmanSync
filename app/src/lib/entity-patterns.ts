@@ -546,7 +546,8 @@ export function matchAmsHumidityEntity(entityId: string): string | null {
   const names = AMS_HUMIDITY_NAMES.join('|');
 
   // Check for standalone "ht" naming first (ams_ht_humidity)
-  const htPattern = new RegExp(`^sensor\\..+_ams_(ht)_(?:${names})(?:_\\d+)?$`);
+  // Prefix is optional to support renamed entities (e.g., sensor.ams_ht_humidity)
+  const htPattern = new RegExp(`^sensor\\.(?:.+_)?ams_(ht)_(?:${names})(?:_\\d+)?$`);
   const htMatch = entityId.match(htPattern);
   if (htMatch) {
     return 'ht';
@@ -554,9 +555,10 @@ export function matchAmsHumidityEntity(entityId: string): string | null {
 
   // AMS number is optional - A1 with AMS Lite uses just "_ams_" without a number
   // AMS type suffix (pro, ht) is optional - P2S uses "ams_2_pro_", AMS HT may use "ams_128_ht_"
+  // Prefix is optional to support renamed entities (e.g., sensor.ams_humidity, sensor.ams_1_humidity)
   // Group 1: AMS number (1, 2, 128, etc.)
   // Group 2: "lite" when AMS Lite with explicit naming
-  const pattern = new RegExp(`^sensor\\..+_ams_(?:(\\d+)(?:_(?:pro|ht))?_|(lite)_)?(?:${names})(?:_\\d+)?$`);
+  const pattern = new RegExp(`^sensor\\.(?:.+_)?ams_(?:(\\d+)(?:_(?:pro|ht))?_|(lite)_)?(?:${names})(?:_\\d+)?$`);
   const match = entityId.match(pattern);
   if (match) {
     // Return AMS number, or "lite", or default to "1" for A1 AMS Lite without explicit naming
@@ -578,7 +580,8 @@ export function matchTrayEntity(entityId: string): { amsNumber: string; trayNumb
   const names = TRAY_NAMES.join('|');
 
   // Check for standalone "ht" naming first (ams_ht_tray_N)
-  const htPattern = new RegExp(`^sensor\\..+_ams_(ht)_(?:${names})_(\\d+)(?:_\\d+)?$`);
+  // Prefix is optional to support renamed entities (e.g., sensor.ams_ht_tray_1)
+  const htPattern = new RegExp(`^sensor\\.(?:.+_)?ams_(ht)_(?:${names})_(\\d+)(?:_\\d+)?$`);
   const htMatch = entityId.match(htPattern);
   if (htMatch) {
     return {
@@ -589,10 +592,11 @@ export function matchTrayEntity(entityId: string): { amsNumber: string; trayNumb
 
   // AMS number is optional - A1 with AMS Lite uses just "_ams_tray_N" without a number
   // AMS type suffix (pro, ht) is optional - P2S uses "ams_2_pro_", AMS HT may use "ams_128_ht_"
+  // Prefix is optional to support renamed entities (e.g., sensor.ams_tray_1, sensor.ams_1_tray_1)
   // Group 1: AMS number (1, 2, 128, etc.)
   // Group 2: "lite" when AMS Lite with explicit naming
   // Group 3: tray number
-  const pattern = new RegExp(`^sensor\\..+_ams_(?:(\\d+)(?:_(?:pro|ht))?_|(lite)_)?(?:${names})_(\\d+)(?:_\\d+)?$`);
+  const pattern = new RegExp(`^sensor\\.(?:.+_)?ams_(?:(\\d+)(?:_(?:pro|ht))?_|(lite)_)?(?:${names})_(\\d+)(?:_\\d+)?$`);
   const match = entityId.match(pattern);
   if (match) {
     return {
