@@ -23,6 +23,28 @@ export async function GET() {
       const client = HomeAssistantClient.forAddon();
       const haConnected = client ? await client.checkConnection() : false;
 
+      // Auto-configure Spoolman from addon config if not already set in DB
+      let activeSpoolmanConnection = spoolmanConnection;
+      const envSpoolmanUrl = process.env.SPOOLMAN_URL?.replace(/\/+$/, '');
+      if (!activeSpoolmanConnection && envSpoolmanUrl) {
+        try {
+          const spoolmanClient = new SpoolmanClient(envSpoolmanUrl);
+          const isValid = await spoolmanClient.checkConnection();
+          if (isValid) {
+            await spoolmanClient.ensureRequiredFieldsExist();
+            await prisma.spoolmanConnection.deleteMany();
+            await prisma.spoolmanConnection.create({ data: { url: envSpoolmanUrl } });
+            activeSpoolmanConnection = { id: '', url: envSpoolmanUrl, createdAt: new Date(), updatedAt: new Date() };
+            console.log(`Spoolman auto-configured from addon config: ${envSpoolmanUrl}`);
+            await createActivityLog({ type: 'connection', message: 'Spoolman connected via addon configuration' });
+          } else {
+            console.log(`Spoolman URL from addon config is not reachable: ${envSpoolmanUrl}`);
+          }
+        } catch (err) {
+          console.error('Failed to auto-configure Spoolman from addon config:', err);
+        }
+      }
+
       return NextResponse.json({
         embeddedMode: false,
         addonMode: true,
@@ -30,8 +52,8 @@ export async function GET() {
           url: 'Home Assistant (via Supervisor)',
           connected: true,
         } : null,
-        spoolman: spoolmanConnection ? {
-          url: spoolmanConnection.url,
+        spoolman: activeSpoolmanConnection ? {
+          url: activeSpoolmanConnection.url,
           connected: true,
         } : null,
       });
