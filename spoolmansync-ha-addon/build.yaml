@@ -1,0 +1,6 @@
+# Pre-built images from GitHub Container Registry
+# HA Supervisor pulls these instead of building locally
+image: ghcr.io/gibz104/spoolmansync-addon
+build_from:
+  aarch64: ghcr.io/gibz104/spoolmansync-addon
+  amd64: ghcr.io/gibz104/spoolmansync-addon

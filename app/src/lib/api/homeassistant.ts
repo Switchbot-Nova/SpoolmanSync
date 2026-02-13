@@ -78,6 +78,30 @@ export function isEmbeddedMode(): boolean {
 }
 
 /**
+ * Check if running as a Home Assistant add-on
+ * Add-ons use the Supervisor API with SUPERVISOR_TOKEN for authentication
+ */
+export function isAddonMode(): boolean {
+  return process.env.HA_MODE === 'addon' && !!process.env.SUPERVISOR_TOKEN;
+}
+
+/**
+ * Get the Supervisor API URL for add-on mode
+ * The Supervisor proxies requests to Home Assistant Core
+ * Note: We return the base URL without /api since the fetch method adds it
+ */
+export function getSupervisorHAUrl(): string {
+  return 'http://supervisor/core';
+}
+
+/**
+ * Get the Supervisor token for add-on authentication
+ */
+export function getSupervisorToken(): string | null {
+  return process.env.SUPERVISOR_TOKEN || null;
+}
+
+/**
  * Get the embedded HA URL
  */
 export function getEmbeddedHAUrl(): string {
@@ -262,6 +286,7 @@ export class HomeAssistantClient {
   private refreshToken: string | null;
   private expiresAt: Date | null;
   private embeddedMode: boolean;
+  private addonMode: boolean;
 
   constructor(
     baseUrl: string,
@@ -269,7 +294,8 @@ export class HomeAssistantClient {
     refreshToken?: string | null,
     expiresAt?: Date | null,
     embeddedMode: boolean = false,
-    clientId: string = 'http://spoolmansync'
+    clientId: string = 'http://spoolmansync',
+    addonMode: boolean = false
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.clientId = clientId;
@@ -277,6 +303,7 @@ export class HomeAssistantClient {
     this.refreshToken = refreshToken || null;
     this.expiresAt = expiresAt || null;
     this.embeddedMode = embeddedMode;
+    this.addonMode = addonMode;
   }
 
   /**
@@ -293,10 +320,36 @@ export class HomeAssistantClient {
   }
 
   /**
-   * Create a client from the stored connection or embedded mode
+   * Create a client for add-on mode (uses Supervisor token)
+   * The Supervisor token never expires while the add-on is running
+   */
+  static forAddon(): HomeAssistantClient | null {
+    const token = getSupervisorToken();
+    if (!token) {
+      console.error('SUPERVISOR_TOKEN not available in add-on mode');
+      return null;
+    }
+    return new HomeAssistantClient(
+      getSupervisorHAUrl(),
+      token,
+      null, // No refresh token needed - Supervisor manages this
+      null, // Token doesn't expire while add-on runs
+      false,
+      'http://spoolmansync',
+      true // addonMode
+    );
+  }
+
+  /**
+   * Create a client from the stored connection or embedded/addon mode
    * Returns null if no valid connection/credentials exist
    */
   static async fromConnection(): Promise<HomeAssistantClient | null> {
+    // Add-on mode: use Supervisor token, no database lookup needed
+    if (isAddonMode()) {
+      return HomeAssistantClient.forAddon();
+    }
+
     // Check for stored connection first (works for both embedded and external)
     const connection = await prisma.hAConnection.findFirst();
 
@@ -335,6 +388,11 @@ export class HomeAssistantClient {
    * Refresh the access token if expired
    */
   private async ensureValidToken(): Promise<void> {
+    // Add-on mode: Supervisor token is always valid while add-on runs
+    if (this.addonMode) {
+      return;
+    }
+
     // If no expiry set or not expired, token is valid
     if (!this.expiresAt || new Date() < this.expiresAt) {
       return;

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { SpoolmanClient } from '@/lib/api/spoolman';
 import {
   isEmbeddedMode,
+  isAddonMode,
   getEmbeddedHAUrl,
   HomeAssistantClient,
   checkHAOnboardingStatus,
@@ -13,7 +14,28 @@ import { createActivityLog } from '@/lib/activity-log';
 export async function GET() {
   try {
     const embeddedMode = isEmbeddedMode();
+    const addonMode = isAddonMode();
     const spoolmanConnection = await prisma.spoolmanConnection.findFirst();
+
+    // In add-on mode, HA is always connected via Supervisor
+    if (addonMode) {
+      // Verify Supervisor connection works
+      const client = HomeAssistantClient.forAddon();
+      const haConnected = client ? await client.checkConnection() : false;
+
+      return NextResponse.json({
+        embeddedMode: false,
+        addonMode: true,
+        homeassistant: haConnected ? {
+          url: 'Home Assistant (via Supervisor)',
+          connected: true,
+        } : null,
+        spoolman: spoolmanConnection ? {
+          url: spoolmanConnection.url,
+          connected: true,
+        } : null,
+      });
+    }
 
     // In embedded mode, check if HA is reachable
     let haConnected = false;
@@ -137,6 +159,7 @@ export async function GET() {
 
     return NextResponse.json({
       embeddedMode,
+      addonMode: false,
       homeassistant: haConnected ? {
         url: haUrl,
         connected: true,

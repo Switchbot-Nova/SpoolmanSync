@@ -103,66 +103,97 @@ export default function Dashboard() {
     fetchData();
   }, [fetchData]);
 
-  // Subscribe to real-time updates via Server-Sent Events
+  // Real-time updates: try SSE first, fall back to polling if SSE doesn't work
+  // (HA's ingress proxy doesn't support SSE streaming)
   useEffect(() => {
-    // Only connect if both services are configured
     if (!settings?.homeassistant || !settings?.spoolman) {
       return;
     }
 
     let eventSource: EventSource | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
+    let sseConnected = false;
+    let pollInterval: NodeJS.Timeout | null = null;
+    let sseCheckTimeout: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (pollInterval) return; // Already polling
+      console.log('SSE unavailable, falling back to polling every 2s');
+      pollInterval = setInterval(() => {
+        fetchData();
+      }, 2000);
+    };
+
+    const handleSSEMessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'connected') {
+          sseConnected = true;
+          // SSE works — cancel the fallback check
+          if (sseCheckTimeout) {
+            clearTimeout(sseCheckTimeout);
+            sseCheckTimeout = null;
+          }
+          return;
+        }
+
+        if (data.type === 'heartbeat') return;
+
+        if (data.type === 'usage') {
+          toast.info(`Filament used: ${data.deducted}g from ${data.spoolName || 'spool'}`);
+          fetchData();
+        } else if (data.type === 'assign') {
+          toast.success(`Auto-assigned ${data.spoolName || 'spool'} to tray`);
+          fetchData();
+        } else if (data.type === 'unassign') {
+          toast.info(`Unassigned ${data.spoolName || 'spool'} from tray`);
+          fetchData();
+        } else if (data.type === 'tray_change') {
+          fetchData();
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    };
 
     const connect = () => {
       eventSource = new EventSource('/api/events');
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          // Skip heartbeat and connection messages
-          if (data.type === 'heartbeat' || data.type === 'connected') {
-            return;
-          }
-
-          // Refresh data when spool is updated
-          if (data.type === 'usage') {
-            console.log('Spool usage received:', data);
-            toast.info(`Filament used: ${data.deducted}g from ${data.spoolName || 'spool'}`);
-            fetchData();
-          } else if (data.type === 'assign') {
-            console.log('Spool assigned:', data);
-            toast.success(`Auto-assigned ${data.spoolName || 'spool'} to tray`);
-            fetchData();
-          } else if (data.type === 'unassign') {
-            console.log('Spool unassigned:', data);
-            toast.info(`Unassigned ${data.spoolName || 'spool'} from tray`);
-            fetchData();
-          } else if (data.type === 'tray_change') {
-            // Tray changed but no spool was auto-matched
-            // Refresh to show warning banner prompting user to assign
-            console.log('Tray changed (no auto-match):', data);
-            fetchData();
-          }
-        } catch (err) {
-          console.error('Error parsing SSE message:', err);
-        }
-      };
+      eventSource.onmessage = handleSSEMessage;
 
       eventSource.onerror = () => {
-        // Connection lost, attempt to reconnect after 5 seconds
         eventSource?.close();
-        reconnectTimeout = setTimeout(connect, 5000);
+        eventSource = null;
+        if (!sseConnected) {
+          // SSE never connected — go straight to polling
+          if (sseCheckTimeout) {
+            clearTimeout(sseCheckTimeout);
+            sseCheckTimeout = null;
+          }
+          startPolling();
+        } else {
+          // Was working, try to reconnect after a delay
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
       };
     };
 
     connect();
 
+    // If SSE doesn't deliver a "connected" message within 4 seconds, fall back to polling
+    sseCheckTimeout = setTimeout(() => {
+      if (!sseConnected) {
+        eventSource?.close();
+        eventSource = null;
+        startPolling();
+      }
+    }, 4000);
+
     return () => {
       eventSource?.close();
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (sseCheckTimeout) clearTimeout(sseCheckTimeout);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [settings?.homeassistant, settings?.spoolman, fetchData]);
 

@@ -545,6 +545,45 @@ template:
 }
 
 /**
+ * Merge generated automations into existing automations.yaml content.
+ * Finds and replaces existing SpoolmanSync automation blocks (by id prefix),
+ * preserving all user-created automations.
+ */
+export function mergeAutomations(existingContent: string, newAutomations: string): string {
+  const trimmed = existingContent.trim();
+
+  // Empty file or empty array marker — just use our automations
+  if (!trimmed || trimmed === '[]') {
+    return newAutomations;
+  }
+
+  // Split content into individual automation entries.
+  // Each automation starts with "- id:" at column 0.
+  // The split keeps "- id:" at the start of each part (except possible preamble in part 0).
+  const parts = trimmed.split(/\n(?=- id:)/);
+
+  // Filter out SpoolmanSync automations
+  const filtered = parts.filter(part => {
+    return !part.match(/^- id:\s*['"]?spoolmansync_/);
+  });
+
+  // Rejoin remaining blocks
+  let result = filtered.join('\n');
+
+  // Clean up any trailing SpoolmanSync comment headers that were left
+  // attached to the end of the previous block (comments precede their automation)
+  result = result.replace(/\n*# ={10,}[^\n]*\n#[^\n]*SpoolmanSync[\s\S]*$/, '');
+
+  result = result.trim();
+
+  if (!result) {
+    return newAutomations;
+  }
+
+  return result + '\n\n' + newAutomations;
+}
+
+/**
  * Merge configuration additions into existing configuration.yaml content
  */
 export function mergeConfiguration(existingConfig: string, additions: string): string {

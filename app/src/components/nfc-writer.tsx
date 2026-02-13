@@ -20,6 +20,7 @@ import {
 import { Nfc, CheckCircle2, XCircle, Loader2, AlertTriangle, Smartphone } from 'lucide-react';
 import type { Spool } from '@/lib/api/spoolman';
 import { buildSpoolSearchValue, parseExtraValue } from '@/lib/api/spoolman';
+import { buildExternalUrl } from '@/lib/ingress-path';
 
 interface NFCWriterProps {
   spools: Spool[];
@@ -137,7 +138,7 @@ export function NFCWriter({ spools }: NFCWriterProps) {
   }, [spools, filters]);
 
   const nfcUrl = selectedSpool
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/scan/spool/${selectedSpool.id}`
+    ? buildExternalUrl(`/scan/spool/${selectedSpool.id}`)
     : null;
 
   const handleSpoolSelect = (spool: Spool) => {
@@ -220,7 +221,7 @@ export function NFCWriter({ spools }: NFCWriterProps) {
 
   // Show unsupported message for non-NFC browsers
   if (!nfcSupported) {
-    const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/scan/spool/` : '/scan/spool/';
+    const baseUrl = typeof window !== 'undefined' ? buildExternalUrl('/scan/spool/') : '/scan/spool/';
 
     return (
       <Alert>

@@ -26,6 +26,7 @@ import { SpoolFilterBar } from '@/components/dashboard/spool-filter-bar';
 import { Printer, QrCode, Settings2 } from 'lucide-react';
 import type { Spool } from '@/lib/api/spoolman';
 import { buildSpoolSearchValue, parseExtraValue } from '@/lib/api/spoolman';
+import { buildExternalUrl } from '@/lib/ingress-path';
 
 interface QRCodeGeneratorProps {
   spools: Spool[];
@@ -122,7 +123,7 @@ export function QRCodeGenerator({ spools }: QRCodeGeneratorProps) {
   }, [spools, filters]);
 
   const qrUrl = selectedSpool
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/scan/spool/${selectedSpool.id}`
+    ? buildExternalUrl(`/scan/spool/${selectedSpool.id}`)
     : null;
 
   const handlePrint = () => {
