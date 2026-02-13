@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-02-13
 
 ### Added
+- **Home Assistant add-on** - Install directly from the HA add-on store with ingress sidebar integration; auto-discovers printers from ha-bambulab
 - **QR code label generation** - Create and print QR code labels for spools; scan with phone camera to assign to AMS trays
 - **NFC tag writing** - Write spool URLs to NFC sticker tags for tap-to-assign on Android devices
 - **Dynamic spool assignment page** - QR scans and NFC taps redirect to a dedicated assignment page with tray selection

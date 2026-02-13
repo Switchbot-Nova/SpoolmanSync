@@ -18,11 +18,6 @@ homeassistant_api: true
 hassio_api: true
 auth_api: true
 
-# Storage for SQLite database
-map:
-  - addon_config:rw
-  - config:rw
-
 # User-configurable options (all optional, configurable from the UI)
 options: {}
 schema:
