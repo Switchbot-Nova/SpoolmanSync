@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { HomeAssistantClient, isEmbeddedMode, getEmbeddedHAUrl } from '@/lib/api/homeassistant';
-import { generateHAConfig, mergeConfiguration } from '@/lib/ha-config-generator';
+import { HomeAssistantClient, isEmbeddedMode, isAddonMode } from '@/lib/api/homeassistant';
+import { generateHAConfig, mergeConfiguration, mergeAutomations } from '@/lib/ha-config-generator';
 import { createActivityLog } from '@/lib/activity-log';
 import { extractPrinterPrefix } from '@/lib/entity-patterns';
 import * as fs from 'fs/promises';
@@ -13,13 +13,16 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    const haConnection = await prisma.hAConnection.findFirst();
+    // In addon mode, HA is always connected via Supervisor
+    const haConnected = isAddonMode() || !!(await prisma.hAConnection.findFirst());
     const embeddedMode = isEmbeddedMode();
+    const addonMode = isAddonMode();
 
     return NextResponse.json({
       automations,
-      haConnected: !!haConnection,
+      haConnected,
       embeddedMode,
+      addonMode,
       configured: automations.length > 0,
     });
   } catch (error) {
@@ -33,19 +36,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, webhookUrl } = body;
 
-    const haConnection = await prisma.hAConnection.findFirst();
-    if (!haConnection) {
+    const haClient = await HomeAssistantClient.fromConnection();
+    if (!haClient) {
       return NextResponse.json({ error: 'Home Assistant not configured' }, { status: 400 });
     }
-
-    const haClient = new HomeAssistantClient(
-      haConnection.url,
-      haConnection.accessToken,
-      haConnection.refreshToken,
-      haConnection.expiresAt,
-      isEmbeddedMode(),
-      haConnection.clientId
-    );
 
     if (action === 'discover') {
       // Discover all printers and trays, return automation config
@@ -98,31 +92,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'auto-configure') {
-      // Auto-configure HA in embedded mode
-      if (!isEmbeddedMode()) {
+      // Auto-configure HA in embedded or addon mode
+      if (!isEmbeddedMode() && !isAddonMode()) {
         return NextResponse.json({
-          error: 'Auto-configure is only available in embedded mode',
+          error: 'Auto-configure is only available in embedded or add-on mode',
         }, { status: 400 });
       }
-
-      const haUrl = getEmbeddedHAUrl();
-
-      // Get stored connection for embedded HA
-      const storedConnection = await prisma.hAConnection.findFirst();
-      if (!storedConnection) {
-        return NextResponse.json({
-          error: 'Home Assistant not connected. Please wait for HA to initialize.',
-        }, { status: 400 });
-      }
-
-      const haClient = new HomeAssistantClient(
-        haUrl,
-        storedConnection.accessToken,
-        storedConnection.refreshToken,
-        storedConnection.expiresAt,
-        true,
-        storedConnection.clientId
-      );
 
       // Discover printers
       const printers = await haClient.discoverPrinters();
@@ -132,11 +107,12 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Get Spoolman connection for webhook URL
-      const spoolmanConnection = await prisma.spoolmanConnection.findFirst();
-
-      // Generate webhook URL (internal Docker network URL for HA to call our app)
-      const internalWebhookUrl = 'http://spoolmansync-app:3000/api/webhook';
+      // Generate webhook URL
+      // Addon mode: host networking, HA Core and addon share localhost
+      // Embedded mode: Docker network hostname
+      const internalWebhookUrl = isAddonMode()
+        ? 'http://127.0.0.1:3000/api/webhook'
+        : 'http://spoolmansync-app:3000/api/webhook';
 
       // Generate configuration
       const config = generateHAConfig(
@@ -145,14 +121,23 @@ export async function POST(request: NextRequest) {
         internalWebhookUrl
       );
 
-      // Write automations.yaml to HA config directory
-      const haConfigPath = '/ha-config';
+      // Write config files to HA config directory
+      // Addon mode: /config/ (mounted via config:rw mapping)
+      // Embedded mode: /ha-config/ (Docker volume mount)
+      const haConfigPath = isAddonMode() ? '/config' : '/ha-config';
       const automationsPath = `${haConfigPath}/automations.yaml`;
       const configPath = `${haConfigPath}/configuration.yaml`;
 
       try {
-        // Write automations.yaml
-        await fs.writeFile(automationsPath, config.automationsYaml, 'utf-8');
+        // Merge automations.yaml (preserves user-created automations)
+        let existingAutomations = '';
+        try {
+          existingAutomations = await fs.readFile(automationsPath, 'utf-8');
+        } catch {
+          console.log('No existing automations.yaml found');
+        }
+        const mergedAutomationsContent = mergeAutomations(existingAutomations, config.automationsYaml);
+        await fs.writeFile(automationsPath, mergedAutomationsContent, 'utf-8');
         console.log('Wrote automations.yaml');
 
         // Read existing configuration.yaml and merge

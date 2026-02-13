@@ -11,13 +11,16 @@ export async function GET() {
   try {
     const client = await HomeAssistantClient.fromConnection();
     if (!client) {
+      console.error('[Printers] No HA client available');
       return NextResponse.json({ error: 'Home Assistant not connected' }, { status: 400 });
     }
 
+    console.log('[Printers] Fetching config entries for domain:', BAMBU_LAB_DOMAIN);
     const entries = await client.getConfigEntries(BAMBU_LAB_DOMAIN);
+    console.log('[Printers] Found', entries.length, 'entries:', JSON.stringify(entries.map(e => ({ entry_id: e.entry_id, title: e.title, domain: e.domain, state: e.state }))));
     return NextResponse.json({ entries });
   } catch (error) {
-    console.error('Error getting Bambu Lab entries:', error);
+    console.error('[Printers] Error getting Bambu Lab entries:', error);
     return NextResponse.json({ error: 'Failed to get printer configurations' }, { status: 500 });
   }
 }

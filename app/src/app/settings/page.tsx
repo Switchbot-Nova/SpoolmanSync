@@ -27,6 +27,7 @@ interface AdminCredentials {
 
 interface Settings {
   embeddedMode: boolean;
+  addonMode?: boolean;
   homeassistant: {
     url: string;
     connected: boolean;
@@ -369,15 +370,47 @@ function SettingsContent() {
                     Embedded
                   </span>
                 )}
+                {settings?.addonMode && (
+                  <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                    Add-on
+                  </span>
+                )}
               </div>
               <CardDescription>
-                {settings?.embeddedMode
-                  ? 'Home Assistant is bundled with SpoolmanSync and auto-configured.'
-                  : 'Connect to your Home Assistant instance to discover Bambu Lab printers.'}
+                {settings?.addonMode
+                  ? 'Connected automatically via Home Assistant Supervisor.'
+                  : settings?.embeddedMode
+                    ? 'Home Assistant is bundled with SpoolmanSync and auto-configured.'
+                    : 'Connect to your Home Assistant instance to discover Bambu Lab printers.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {settings?.embeddedMode ? (
+              {settings?.addonMode ? (
+                // Add-on mode - HA connection is automatic via Supervisor
+                <div className="space-y-4">
+                  {settings?.homeassistant ? (
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div>
+                        <p className="font-medium text-green-600 dark:text-green-400">Connected via Supervisor</p>
+                        <p className="text-sm text-muted-foreground">
+                          SpoolmanSync is running as a Home Assistant add-on with automatic API access.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <p className="font-medium text-yellow-700 dark:text-yellow-400">Connecting to Home Assistant...</p>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">
+                        The Supervisor connection is being established.
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    The Bambu Lab integration must be installed via HACS in your Home Assistant instance.
+                    Add your printers in the Bambu Lab section below.
+                  </p>
+                </div>
+              ) : settings?.embeddedMode ? (
                 // Embedded mode - show status and admin credentials
                 <div className="space-y-4">
                   {settings?.homeassistant?.connected ? (

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { HomeAssistantClient, isEmbeddedMode, HATray } from '@/lib/api/homeassistant';
+import { HomeAssistantClient, HATray } from '@/lib/api/homeassistant';
 import { SpoolmanClient, Spool } from '@/lib/api/spoolman';
 
 interface MismatchInfo {
@@ -74,21 +74,13 @@ function detectTrayMismatch(tray: HATray, assignedSpool: Spool): MismatchInfo | 
 
 export async function GET() {
   try {
-    const haConnection = await prisma.hAConnection.findFirst();
+    const haClient = await HomeAssistantClient.fromConnection();
     const spoolmanConnection = await prisma.spoolmanConnection.findFirst();
 
-    if (!haConnection) {
+    if (!haClient) {
       return NextResponse.json({ error: 'Home Assistant not configured' }, { status: 400 });
     }
 
-    const haClient = new HomeAssistantClient(
-      haConnection.url,
-      haConnection.accessToken,
-      haConnection.refreshToken,
-      haConnection.expiresAt,
-      isEmbeddedMode(),
-      haConnection.clientId
-    );
     const printers = await haClient.discoverPrinters();
 
     // If Spoolman is configured, enrich with spool data

@@ -28,6 +28,7 @@ export default function AutomationsPage() {
   const [registeredAutomations, setRegisteredAutomations] = useState<RegisteredAutomation[]>([]);
   const [haConnected, setHaConnected] = useState(false);
   const [embeddedMode, setEmbeddedMode] = useState(false);
+  const [addonMode, setAddonMode] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [copiedAutomations, setCopiedAutomations] = useState(false);
@@ -43,12 +44,12 @@ export default function AutomationsPage() {
     setWebhookUrl(origin);
   }, []);
 
-  // Check for printers when HA is connected in embedded mode
+  // Check for printers when HA is connected in embedded or addon mode
   useEffect(() => {
-    if (embeddedMode && haConnected && printerCount === null) {
+    if ((embeddedMode || addonMode) && haConnected && printerCount === null) {
       checkForPrinters();
     }
-  }, [embeddedMode, haConnected, printerCount]);
+  }, [embeddedMode, addonMode, haConnected, printerCount]);
 
   const checkForPrinters = async () => {
     setCheckingPrinters(true);
@@ -71,6 +72,7 @@ export default function AutomationsPage() {
       setRegisteredAutomations(data.automations || []);
       setHaConnected(data.haConnected);
       setEmbeddedMode(data.embeddedMode || false);
+      setAddonMode(data.addonMode || false);
       setConfigured(data.configured || false);
     } catch (err) {
       console.error('Failed to fetch automations:', err);
@@ -196,8 +198,8 @@ export default function AutomationsPage() {
     }
   };
 
-  // Embedded mode UI - simplified auto-configure
-  if (embeddedMode) {
+  // Embedded/Addon mode UI - simplified auto-configure
+  if (embeddedMode || addonMode) {
     return (
       <div className="min-h-screen bg-background">
         <Nav />
@@ -209,7 +211,7 @@ export default function AutomationsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   Spool Tracking Automations
-                  <Badge variant="secondary">Embedded Mode</Badge>
+                  <Badge variant="secondary">{addonMode ? 'Add-on Mode' : 'Embedded Mode'}</Badge>
                 </CardTitle>
                 <CardDescription>
                   SpoolmanSync automatically tracks filament usage and syncs with Spoolman when prints complete or trays change.

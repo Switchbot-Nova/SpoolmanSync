@@ -12,6 +12,7 @@ env:
   REGISTRY_DOCKERHUB: docker.io
   IMAGE_NAME_APP: spoolmansync
   IMAGE_NAME_HA: spoolmansync-homeassistant
+  IMAGE_NAME_ADDON: spoolmansync-addon
 
 jobs:
   build-and-push:
@@ -23,6 +24,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Verify addon version matches package.json
+        run: |
+          APP_VERSION=$(node -p "require('./app/package.json').version")
+          ADDON_VERSION=$(grep '^version:' spoolmansync-ha-addon/config.yaml | sed 's/version: *"\(.*\)"/\1/')
+          if [ "$APP_VERSION" != "$ADDON_VERSION" ]; then
+            echo "::error::Version mismatch! package.json=$APP_VERSION, config.yaml=$ADDON_VERSION"
+            exit 1
+          fi
+          echo "Versions match: $APP_VERSION"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,6 +82,19 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
+      - name: Generate Docker tags for addon
+        id: meta-addon
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY_GITHUB }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_ADDON }}
+            ${{ env.REGISTRY_DOCKERHUB }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME_ADDON }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
       # Build and push main app image (multi-arch: amd64 + arm64)
       - name: Build and push SpoolmanSync app
         uses: docker/build-push-action@v6
@@ -94,5 +118,19 @@ jobs:
           push: true
           tags: ${{ steps.meta-ha.outputs.tags }}
           labels: ${{ steps.meta-ha.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build and push HA add-on image (multi-arch: amd64 + arm64)
+      # Context is repo root since Dockerfile needs both app/ and spoolmansync-ha-addon/rootfs/
+      - name: Build and push SpoolmanSync Add-on
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./spoolmansync-ha-addon/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-addon.outputs.tags }}
+          labels: ${{ steps.meta-addon.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

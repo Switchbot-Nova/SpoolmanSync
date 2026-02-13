@@ -8,11 +8,22 @@ import { spoolEvents, SPOOL_UPDATED, ACTIVITY_LOG_CREATED, SpoolUpdateEvent, Act
  * - Spools are assigned/unassigned to trays
  * - Activity logs are created
  */
+
+// Ensure this route is never statically optimized
+export const dynamic = 'force-dynamic';
+
 export async function GET(): Promise<Response> {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     start(controller) {
+      // Send a large padding comment to flush through proxy buffers.
+      // HA's ingress proxy and nginx may hold small chunks in internal
+      // buffers (~4KB). SSE comments (lines starting with :) are ignored
+      // by EventSource but push data through the proxy chain.
+      const padding = `: ${' '.repeat(4096)}\n\n`;
+      controller.enqueue(encoder.encode(padding));
+
       // Send initial connection message
       const connectMessage = `data: ${JSON.stringify({ type: 'connected', timestamp: Date.now() })}\n\n`;
       controller.enqueue(encoder.encode(connectMessage));
@@ -71,8 +82,12 @@ export async function GET(): Promise<Response> {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      // Prevent HA's ingress proxy from adding Content-Encoding: deflate
+      // which causes browsers to buffer the entire response instead of streaming
+      'Content-Encoding': 'identity',
     },
   });
 }

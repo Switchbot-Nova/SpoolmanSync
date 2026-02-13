@@ -66,31 +66,50 @@ export default function LogsPage() {
   }, [page, filter, pageSize, fetchLogs]);
 
   useEffect(() => {
-    // Set up SSE connection for real-time updates
-    const eventSource = new EventSource('/api/events');
-    eventSourceRef.current = eventSource;
+    // Try SSE for real-time updates, fall back to polling if SSE doesn't work
+    // (HA's ingress proxy doesn't support SSE streaming)
+    let eventSource: EventSource | null = null;
+    let sseConnected = false;
+    let pollInterval: NodeJS.Timeout | null = null;
+    let sseCheckTimeout: NodeJS.Timeout | null = null;
 
-    eventSource.onopen = () => {
-      setConnected(true);
+    const startPolling = () => {
+      if (pollInterval) return;
+      console.log('SSE unavailable on logs page, falling back to polling every 2s');
+      pollInterval = setInterval(() => {
+        fetchLogs(page, filter, pageSize);
+      }, 2000);
     };
+
+    eventSource = new EventSource('/api/events');
+    eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+
+        if (data.type === 'connected') {
+          sseConnected = true;
+          setConnected(true);
+          if (sseCheckTimeout) {
+            clearTimeout(sseCheckTimeout);
+            sseCheckTimeout = null;
+          }
+          return;
+        }
+
+        if (data.type === 'heartbeat') return;
+
         if (data.eventType === 'activity_log') {
-          // Check if this log matches our current filter
           const matchesFilter = shouldShowLog(data.type, filter);
 
           if (matchesFilter && page === 1) {
-            // Check for duplicates using the ref (synchronous check)
             if (seenLogIdsRef.current.has(data.id)) {
-              return; // Already seen this log
+              return;
             }
 
-            // Mark as seen
             seenLogIdsRef.current.add(data.id);
 
-            // Prepend new log to the list
             setLogs((prevLogs) => {
               return [{
                 id: data.id,
@@ -98,10 +117,9 @@ export default function LogsPage() {
                 message: data.message,
                 details: data.details,
                 createdAt: data.createdAt,
-              }, ...prevLogs].slice(0, pageSize); // Keep max pageSize logs
+              }, ...prevLogs].slice(0, pageSize);
             });
 
-            // Update pagination to reflect the new log
             setPagination((prev) => {
               if (!prev) return prev;
               const newTotal = prev.total + 1;
@@ -114,18 +132,40 @@ export default function LogsPage() {
           }
         }
       } catch {
-        // Ignore parse errors (heartbeats, etc.)
+        // Ignore parse errors
       }
     };
 
     eventSource.onerror = () => {
       setConnected(false);
+      eventSource?.close();
+      eventSource = null;
+      eventSourceRef.current = null;
+      if (!sseConnected) {
+        if (sseCheckTimeout) {
+          clearTimeout(sseCheckTimeout);
+          sseCheckTimeout = null;
+        }
+        startPolling();
+      }
     };
 
+    // If SSE doesn't deliver a "connected" message within 4 seconds, fall back to polling
+    sseCheckTimeout = setTimeout(() => {
+      if (!sseConnected) {
+        eventSource?.close();
+        eventSource = null;
+        eventSourceRef.current = null;
+        startPolling();
+      }
+    }, 4000);
+
     return () => {
-      eventSource.close();
+      eventSource?.close();
+      if (sseCheckTimeout) clearTimeout(sseCheckTimeout);
+      if (pollInterval) clearInterval(pollInterval);
     };
-  }, [filter, page, pageSize]);
+  }, [filter, page, pageSize, fetchLogs]);
 
   const shouldShowLog = (type: string, filterType: FilterType): boolean => {
     if (filterType === 'all') return true;

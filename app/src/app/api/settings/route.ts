@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { SpoolmanClient } from '@/lib/api/spoolman';
 import {
   isEmbeddedMode,
+  isAddonMode,
   getEmbeddedHAUrl,
   HomeAssistantClient,
   checkHAOnboardingStatus,
@@ -13,7 +14,50 @@ import { createActivityLog } from '@/lib/activity-log';
 export async function GET() {
   try {
     const embeddedMode = isEmbeddedMode();
+    const addonMode = isAddonMode();
     const spoolmanConnection = await prisma.spoolmanConnection.findFirst();
+
+    // In add-on mode, HA is always connected via Supervisor
+    if (addonMode) {
+      // Verify Supervisor connection works
+      const client = HomeAssistantClient.forAddon();
+      const haConnected = client ? await client.checkConnection() : false;
+
+      // Auto-configure Spoolman from addon config if not already set in DB
+      let activeSpoolmanConnection = spoolmanConnection;
+      const envSpoolmanUrl = process.env.SPOOLMAN_URL?.replace(/\/+$/, '');
+      if (!activeSpoolmanConnection && envSpoolmanUrl) {
+        try {
+          const spoolmanClient = new SpoolmanClient(envSpoolmanUrl);
+          const isValid = await spoolmanClient.checkConnection();
+          if (isValid) {
+            await spoolmanClient.ensureRequiredFieldsExist();
+            await prisma.spoolmanConnection.deleteMany();
+            await prisma.spoolmanConnection.create({ data: { url: envSpoolmanUrl } });
+            activeSpoolmanConnection = { id: '', url: envSpoolmanUrl, createdAt: new Date(), updatedAt: new Date() };
+            console.log(`Spoolman auto-configured from addon config: ${envSpoolmanUrl}`);
+            await createActivityLog({ type: 'connection', message: 'Spoolman connected via addon configuration' });
+          } else {
+            console.log(`Spoolman URL from addon config is not reachable: ${envSpoolmanUrl}`);
+          }
+        } catch (err) {
+          console.error('Failed to auto-configure Spoolman from addon config:', err);
+        }
+      }
+
+      return NextResponse.json({
+        embeddedMode: false,
+        addonMode: true,
+        homeassistant: haConnected ? {
+          url: 'Home Assistant (via Supervisor)',
+          connected: true,
+        } : null,
+        spoolman: activeSpoolmanConnection ? {
+          url: activeSpoolmanConnection.url,
+          connected: true,
+        } : null,
+      });
+    }
 
     // In embedded mode, check if HA is reachable
     let haConnected = false;
@@ -191,6 +235,7 @@ export async function GET() {
 
     return NextResponse.json({
       embeddedMode,
+      addonMode: false,
       homeassistant: haResponse,
       spoolman: spoolmanConnection ? {
         url: spoolmanConnection.url,
