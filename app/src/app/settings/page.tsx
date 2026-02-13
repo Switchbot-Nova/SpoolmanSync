@@ -31,6 +31,7 @@ interface Settings {
     url: string;
     connected: boolean;
     adminCredentials?: AdminCredentials;
+    error?: string;
   } | null;
   spoolman: { url: string; connected: boolean } | null;
 }
@@ -61,6 +62,12 @@ function SettingsContent() {
   // Admin credentials state (embedded mode)
   const [showPassword, setShowPassword] = useState(false);
 
+  // Reconnect form state (embedded mode, broken connection)
+  const [reconnectUsername, setReconnectUsername] = useState('admin');
+  const [reconnectPassword, setReconnectPassword] = useState('');
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectError, setReconnectError] = useState('');
+
   // Filter configuration states
   const [filterFields, setFilterFields] = useState<FilterField[]>([]);
   const [enabledFilters, setEnabledFilters] = useState<string[]>([]);
@@ -90,10 +97,10 @@ function SettingsContent() {
 
   // Fetch printers only when HA is connected
   useEffect(() => {
-    if (settings?.homeassistant) {
+    if (settings?.homeassistant?.connected) {
       fetchPrinters();
     }
-  }, [settings?.homeassistant]);
+  }, [settings?.homeassistant?.connected]);
 
   // Fetch filter fields when Spoolman is connected
   useEffect(() => {
@@ -219,6 +226,43 @@ function SettingsContent() {
     }
   };
 
+  const reconnectHomeAssistant = async () => {
+    if (!reconnectPassword) {
+      toast.error('Please enter the Home Assistant password');
+      return;
+    }
+
+    setReconnecting(true);
+    setReconnectError('');
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'reconnect_ha',
+          username: reconnectUsername,
+          password: reconnectPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to reconnect');
+      }
+
+      toast.success('Reconnected to Home Assistant');
+      setReconnectPassword('');
+      setReconnectError('');
+      fetchSettings();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to reconnect';
+      setReconnectError(message);
+      toast.error(message);
+    } finally {
+      setReconnecting(false);
+    }
+  };
+
   const saveSpoolmanSettings = async () => {
     setSaving('spoolman');
     try {
@@ -314,7 +358,11 @@ function SettingsContent() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className={`h-3 w-3 rounded-full ${settings?.homeassistant ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div className={`h-3 w-3 rounded-full ${
+                  settings?.homeassistant?.connected ? 'bg-green-500'
+                    : settings?.homeassistant?.error ? 'bg-orange-500'
+                    : 'bg-gray-300'
+                }`} />
                 <CardTitle>Home Assistant</CardTitle>
                 {settings?.embeddedMode && (
                   <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
@@ -332,7 +380,8 @@ function SettingsContent() {
               {settings?.embeddedMode ? (
                 // Embedded mode - show status and admin credentials
                 <div className="space-y-4">
-                  {settings?.homeassistant ? (
+                  {settings?.homeassistant?.connected ? (
+                    // State 1: Connected
                     <>
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
@@ -405,13 +454,58 @@ function SettingsContent() {
                           </div>
 
                           <p className="text-xs text-muted-foreground pt-2 border-t border-blue-200 dark:border-blue-800">
-                            To change the password, login to Home Assistant and update it in your Profile settings.
-                            SpoolmanSync uses token-based authentication, so changing the password won&apos;t affect app functionality.
+                            If you change the password in Home Assistant, you can reconnect here using the new password.
                           </p>
                         </div>
                       )}
                     </>
-                  ) : (
+                  ) : settings?.homeassistant?.error ? (
+                    // State 3: Connection broken (token invalid, password may have changed)
+                    <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg space-y-3">
+                      <div>
+                        <p className="font-medium text-orange-700 dark:text-orange-400">Connection Lost</p>
+                        <p className="text-sm text-orange-600 dark:text-orange-500 mt-1">
+                          The Home Assistant connection token is no longer valid.
+                          This usually happens after changing the HA password.
+                          Enter your current Home Assistant credentials to reconnect.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="reconnect-username">Username</Label>
+                          <Input
+                            id="reconnect-username"
+                            value={reconnectUsername}
+                            onChange={(e) => setReconnectUsername(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="reconnect-password">Password</Label>
+                          <Input
+                            id="reconnect-password"
+                            type="password"
+                            value={reconnectPassword}
+                            onChange={(e) => setReconnectPassword(e.target.value)}
+                            placeholder="Enter your HA password"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') reconnectHomeAssistant();
+                            }}
+                          />
+                        </div>
+                        {reconnectError && (
+                          <p className="text-sm text-red-600 dark:text-red-400">{reconnectError}</p>
+                        )}
+                        <Button
+                          onClick={reconnectHomeAssistant}
+                          disabled={reconnecting || !reconnectPassword}
+                        >
+                          {reconnecting ? 'Reconnecting...' : 'Reconnect'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : !settings?.homeassistant ? (
+                    // State 2: HA still starting up (no connection yet)
                     <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                       <p className="font-medium text-yellow-700 dark:text-yellow-400">Connecting to Home Assistant...</p>
                       <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">
@@ -425,7 +519,7 @@ function SettingsContent() {
                         </Button>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     The embedded Home Assistant is pre-configured with HACS and the Bambu Lab integration.
                     Add your printers in the Bambu Lab section below.
@@ -475,7 +569,7 @@ function SettingsContent() {
           <Separator />
 
           {/* Bambu Lab Printers */}
-          {settings?.homeassistant && (
+          {settings?.homeassistant?.connected && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -529,7 +623,7 @@ function SettingsContent() {
             </Card>
           )}
 
-          {settings?.homeassistant && <Separator />}
+          {settings?.homeassistant?.connected && <Separator />}
 
           {/* Spoolman Settings */}
           <Card>

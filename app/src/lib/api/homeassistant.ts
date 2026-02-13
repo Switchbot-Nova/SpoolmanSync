@@ -263,6 +263,98 @@ export class HomeAssistantClient {
   private expiresAt: Date | null;
   private embeddedMode: boolean;
 
+  /**
+   * Authenticate with HA using username/password via the login flow API.
+   * Used to re-authenticate when refresh tokens are invalidated (e.g., password change).
+   *
+   * Three-step flow:
+   * 1. POST /auth/login_flow - start flow, get flow_id
+   * 2. POST /auth/login_flow/{flow_id} - submit credentials, get auth code
+   * 3. POST /auth/token - exchange auth code for tokens
+   *
+   * Returns null on any failure (invalid credentials, HA unreachable, etc.)
+   */
+  static async loginWithCredentials(
+    baseUrl: string,
+    username: string,
+    password: string,
+    clientId: string = 'http://spoolmansync'
+  ): Promise<{ accessToken: string; refreshToken: string; expiresAt: Date } | null> {
+    try {
+      // Step 1: Start the login flow
+      const flowResponse = await fetch(`${baseUrl}/auth/login_flow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: clientId,
+          handler: ['homeassistant', null],
+          redirect_uri: `${clientId}/`,
+        }),
+      });
+
+      if (!flowResponse.ok) {
+        console.error('Failed to start login flow:', flowResponse.status);
+        return null;
+      }
+
+      const flowData = await flowResponse.json();
+      const flowId = flowData.flow_id;
+
+      // Step 2: Submit credentials
+      const loginResponse = await fetch(`${baseUrl}/auth/login_flow/${flowId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: clientId,
+          username,
+          password,
+        }),
+      });
+
+      if (!loginResponse.ok) {
+        console.error('Login flow submission failed:', loginResponse.status);
+        return null;
+      }
+
+      const loginData = await loginResponse.json();
+
+      if (loginData.type !== 'create_entry') {
+        console.error('Login flow did not create entry:', loginData.type, loginData.errors);
+        return null;
+      }
+
+      const authCode = loginData.result;
+
+      // Step 3: Exchange auth code for tokens
+      const tokenResponse = await fetch(`${baseUrl}/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: authCode,
+          client_id: clientId,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        console.error('Token exchange failed:', tokenResponse.status);
+        return null;
+      }
+
+      const tokens = await tokenResponse.json();
+      const expiresAt = new Date(Date.now() + (tokens.expires_in || 1800) * 1000);
+
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt,
+      };
+    } catch (err) {
+      console.error('loginWithCredentials failed:', err);
+      return null;
+    }
+  }
+
   constructor(
     baseUrl: string,
     accessToken?: string | null,

@@ -37,6 +37,39 @@ export async function GET() {
         );
         haConnected = await client.checkConnection();
         console.log('Embedded HA connection with stored token:', haConnected ? 'success' : 'failed');
+
+        // If token-based connection failed, try to re-authenticate with stored admin credentials
+        if (!haConnected) {
+          const adminCredsSetting = await prisma.settings.findUnique({
+            where: { key: 'ha_admin_credentials' },
+          });
+          if (adminCredsSetting) {
+            try {
+              const creds = JSON.parse(adminCredsSetting.value);
+              console.log('Token invalid, attempting re-authentication with stored credentials...');
+              const result = await HomeAssistantClient.loginWithCredentials(
+                haUrl, creds.username, creds.password, storedConnection.clientId
+              );
+              if (result) {
+                // Success - update stored tokens
+                await prisma.hAConnection.updateMany({
+                  data: {
+                    accessToken: result.accessToken,
+                    refreshToken: result.refreshToken,
+                    expiresAt: result.expiresAt,
+                  },
+                });
+                haConnected = true;
+                console.log('Auto-recovery successful: re-authenticated with stored credentials');
+              } else {
+                // Stored credentials are also invalid (password was changed)
+                console.log('Auto-recovery failed: stored credentials rejected');
+              }
+            } catch {
+              console.error('Failed to parse admin credentials for auto-recovery');
+            }
+          }
+        }
       }
 
       if (!haConnected) {
@@ -135,13 +168,30 @@ export async function GET() {
       // API is WebSocket-only, not REST API.
     }
 
-    return NextResponse.json({
-      embeddedMode,
-      homeassistant: haConnected ? {
+    // Determine HA response:
+    // - Connected: { url, connected: true, adminCredentials }
+    // - Broken connection in embedded mode (stored connection exists but token invalid): { url, connected: false, error: 'token_invalid' }
+    // - Not yet set up (no stored connection, HA still starting): null
+    let haResponse = null;
+    if (haConnected) {
+      haResponse = {
         url: haUrl,
         connected: true,
         adminCredentials, // Only populated in embedded mode
-      } : null,
+      };
+    } else if (embeddedMode && await prisma.hAConnection.findFirst()) {
+      // We have a stored connection but it's broken — don't show "Connecting..." spinner
+      haResponse = {
+        url: haUrl,
+        connected: false,
+        error: 'token_invalid',
+      };
+    }
+    // else: null — HA hasn't been set up yet (first startup)
+
+    return NextResponse.json({
+      embeddedMode,
+      homeassistant: haResponse,
       spoolman: spoolmanConnection ? {
         url: spoolmanConnection.url,
         connected: true,
@@ -169,6 +219,51 @@ export async function POST(request: NextRequest) {
         update: {
           value: JSON.stringify(config || []),
         },
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (type === 'reconnect_ha') {
+      // Re-authenticate with HA using provided credentials (embedded mode only)
+      const { username, password } = body;
+      if (!username || !password) {
+        return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
+      }
+
+      const haUrl = getEmbeddedHAUrl();
+      const storedConnection = await prisma.hAConnection.findFirst();
+      const clientId = storedConnection?.clientId || 'http://spoolmansync';
+
+      const result = await HomeAssistantClient.loginWithCredentials(haUrl, username, password, clientId);
+      if (!result) {
+        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      }
+
+      // Update stored tokens
+      await prisma.hAConnection.updateMany({
+        data: {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresAt: result.expiresAt,
+        },
+      });
+
+      // Update stored admin credentials so future auto-recovery uses the new password
+      await prisma.settings.upsert({
+        where: { key: 'ha_admin_credentials' },
+        create: {
+          key: 'ha_admin_credentials',
+          value: JSON.stringify({ username, password }),
+        },
+        update: {
+          value: JSON.stringify({ username, password }),
+        },
+      });
+
+      await createActivityLog({
+        type: 'connection',
+        message: 'Home Assistant reconnected with updated credentials',
       });
 
       return NextResponse.json({ success: true });
