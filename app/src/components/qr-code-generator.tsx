@@ -30,6 +30,7 @@ import { buildExternalUrl } from '@/lib/ingress-path';
 
 interface QRCodeGeneratorProps {
   spools: Spool[];
+  directAccessPort?: number;
 }
 
 interface FilterField {
@@ -76,7 +77,7 @@ function getSpoolFieldValue(spool: Spool, fieldKey: string): string | null {
   }
 }
 
-export function QRCodeGenerator({ spools }: QRCodeGeneratorProps) {
+export function QRCodeGenerator({ spools, directAccessPort }: QRCodeGeneratorProps) {
   const [selectedSpool, setSelectedSpool] = useState<Spool | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -123,7 +124,7 @@ export function QRCodeGenerator({ spools }: QRCodeGeneratorProps) {
   }, [spools, filters]);
 
   const qrUrl = selectedSpool
-    ? buildExternalUrl(`/scan/spool/${selectedSpool.id}`)
+    ? buildExternalUrl(`/scan/spool/${selectedSpool.id}`, directAccessPort)
     : null;
 
   const handlePrint = () => {

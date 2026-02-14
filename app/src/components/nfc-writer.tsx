@@ -24,6 +24,7 @@ import { buildExternalUrl } from '@/lib/ingress-path';
 
 interface NFCWriterProps {
   spools: Spool[];
+  directAccessPort?: number;
 }
 
 interface FilterField {
@@ -95,7 +96,7 @@ function getSpoolFieldValue(spool: Spool, fieldKey: string): string | null {
   }
 }
 
-export function NFCWriter({ spools }: NFCWriterProps) {
+export function NFCWriter({ spools, directAccessPort }: NFCWriterProps) {
   const [selectedSpool, setSelectedSpool] = useState<Spool | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [filters, setFilters] = useState<Record<string, string | null>>({});
@@ -138,7 +139,7 @@ export function NFCWriter({ spools }: NFCWriterProps) {
   }, [spools, filters]);
 
   const nfcUrl = selectedSpool
-    ? buildExternalUrl(`/scan/spool/${selectedSpool.id}`)
+    ? buildExternalUrl(`/scan/spool/${selectedSpool.id}`, directAccessPort)
     : null;
 
   const handleSpoolSelect = (spool: Spool) => {
@@ -221,7 +222,7 @@ export function NFCWriter({ spools }: NFCWriterProps) {
 
   // Show unsupported message for non-NFC browsers
   if (!nfcSupported) {
-    const baseUrl = typeof window !== 'undefined' ? buildExternalUrl('/scan/spool/') : '/scan/spool/';
+    const baseUrl = typeof window !== 'undefined' ? buildExternalUrl('/scan/spool/', directAccessPort) : '/scan/spool/';
 
     return (
       <Alert>

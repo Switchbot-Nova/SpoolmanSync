@@ -54,6 +54,8 @@ If you're running Home Assistant OS or Supervised, install SpoolmanSync directly
 5. Configure your Spoolman URL in **Settings** (or in the add-on configuration tab)
 6. Go to **Automations** and click **Configure Automations**
 
+**Port conflict?** The add-on uses port `3000` by default for direct access and QR/NFC scanning. If another add-on or service is already using port 3000, change it in the add-on's **Configuration** tab.
+
 **Requirements:** [ha-bambulab](https://github.com/greghesp/ha-bambulab) integration installed via [HACS](https://hacs.xyz/) and [Spoolman](https://github.com/Donkie/Spoolman) running and accessible from Home Assistant.
 
 ---

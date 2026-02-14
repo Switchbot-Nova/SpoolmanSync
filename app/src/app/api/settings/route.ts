@@ -48,6 +48,7 @@ export async function GET() {
       return NextResponse.json({
         embeddedMode: false,
         addonMode: true,
+        directAccessPort: parseInt(process.env.DIRECT_ACCESS_PORT || '3000', 10),
         homeassistant: haConnected ? {
           url: 'Home Assistant (via Supervisor)',
           connected: true,

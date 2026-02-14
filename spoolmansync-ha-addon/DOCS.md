@@ -16,6 +16,7 @@ Sync Bambu Lab AMS trays with Spoolman filament inventory via Home Assistant.
 | Option | Description |
 |--------|-------------|
 | `spoolman_url` | URL to your Spoolman instance (e.g., `http://192.168.1.100:7912`) |
+| `port` | Port for direct access / QR code scanning (default: `3000`). Change this if another add-on or service is already using port 3000. |
 
 You can also configure the Spoolman URL from the SpoolmanSync Settings page after opening the add-on.
 

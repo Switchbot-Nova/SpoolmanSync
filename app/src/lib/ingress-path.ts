@@ -41,13 +41,16 @@ export function isIngressMode(): boolean {
  * because HA ingress strips the base path, causing CSS/JS assets to fail loading
  * (the browser requests /_next/static/... from HA instead of through ingress).
  *
- * Instead, we point to the Next.js server directly on port 3000, which is
- * accessible on the local network via host_network: true. This gives a clean
- * URL with no path prefix issues.
+ * Instead, we point to the Next.js server directly on the configured direct
+ * access port (default 3000), which is accessible on the local network via
+ * host_network: true. This gives a clean URL with no path prefix issues.
  *
  * In non-ingress mode, returns the standard origin + path.
+ *
+ * @param path - The path to build the URL for
+ * @param directAccessPort - The direct access port (addon mode only, default 3000)
  */
-export function buildExternalUrl(path: string): string {
+export function buildExternalUrl(path: string, directAccessPort: number = 3000): string {
   if (typeof window === 'undefined') {
     return path;
   }
@@ -56,9 +59,9 @@ export function buildExternalUrl(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
   if (isIngressMode()) {
-    // In addon mode, use the Next.js server directly (port 3000)
+    // In addon mode, use the Next.js server directly on the configured port
     // host_network: true makes this accessible from the local network
-    return `http://${window.location.hostname}:3000${normalizedPath}`;
+    return `http://${window.location.hostname}:${directAccessPort}${normalizedPath}`;
   }
 
   return `${window.location.origin}${normalizedPath}`;

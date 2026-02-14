@@ -24,19 +24,14 @@ map:
   - config:rw
 
 # User-configurable options (all optional, configurable from the UI)
-options: {}
+options:
+  port: 3000
 schema:
   spoolman_url: url?
+  port: "int(1024,65535)?"
 
 # Use host network so the add-on can reach services on Tailscale, VPNs, etc.
 host_network: true
-
-# Open port 3000 in HA OS firewall for direct access (QR code scanning from phones)
-# With host_network, ports aren't mapped but ARE used for firewall rules
-ports:
-  "3000/tcp": 3000
-ports_description:
-  "3000/tcp": "SpoolmanSync direct access (QR code scanning)"
 
 # Startup configuration
 startup: application
