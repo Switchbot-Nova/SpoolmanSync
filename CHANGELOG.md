@@ -5,6 +5,15 @@ All notable changes to SpoolmanSync will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-02-14
+
+### Added
+- Configurable direct access port for the HA add-on — change in the add-on Configuration tab to avoid port 3000 conflicts with other add-ons (#14)
+
+### Fixed
+- QR code and NFC tag URLs now use the configured port instead of hardcoded 3000
+- Removed confusing duplicate Network port section from add-on Configuration UI
+
 ## [1.1.0] - 2026-02-13
 
 ### Added
