@@ -19,6 +19,10 @@ homeassistant_api: true
 hassio_api: true
 auth_api: true
 
+# Map HA config directory so addon can write automations.yaml and configuration.yaml
+map:
+  - config:rw
+
 # User-configurable options (all optional, configurable from the UI)
 options: {}
 schema:
