@@ -40,6 +40,28 @@ SpoolmanSync automatically tracks which filament spools are loaded in your Bambu
 - **Webhook Integration** - Receives tray change events from Home Assistant automations
 - **Activity Logging** - Track all spool changes and sync events
 
+## Home Assistant Integration (HACS)
+
+Manage your AMS trays directly from your Home Assistant dashboard with the SpoolmanSync integration.
+
+### Features
+- **AMS Tray Selection**: Assign spools to trays using a simple dropdown menu.
+- **Spool Information**: View detailed filament data (material, weight, color) for each tray.
+- **Modern Dashboard Card**: Includes a custom Tile-based card for a clean, native look.
+- **Automatic Sync**: Stays in sync with the SpoolmanSync web app and QR/NFC scans.
+
+### Installation via HACS
+1. Ensure [HACS](https://hacs.xyz/) is installed.
+2. Go to **HACS** → **Integrations**.
+3. Click **⋮** (top right) → **Custom repositories**.
+4. Add: `https://github.com/gibz104/SpoolmanSync` with category **Integration**.
+5. Find **SpoolmanSync** in HACS and click **Download**.
+6. Restart Home Assistant.
+7. Go to **Settings** → **Devices & Services** → **Add Integration** and search for **SpoolmanSync**.
+8. Enter your SpoolmanSync URL (e.g., `http://192.168.0.34:3000`).
+
+---
+
 ## Home Assistant Add-on (Recommended for HA OS users)
 
 If you're running Home Assistant OS or Supervised, install SpoolmanSync directly as an add-on:

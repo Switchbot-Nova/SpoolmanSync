@@ -1,41 +1,61 @@
+/**
+ * SpoolmanSync AMS Card
+ */
 class SpoolmanSyncCard extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+  }
+
   set hass(hass) {
+    this._hass = hass;
     if (!this.content) {
-      this.innerHTML = `
-        <ha-card header="SpoolmanSync AMS">
-          <div class="card-content"></div>
-        </ha-card>
-      `;
-      this.content = this.querySelector(".card-content");
+      this.render();
+    } else {
+      this.update();
     }
+  }
 
-    const entities = this.config.entities || [];
+  setConfig(config) {
+    this._config = config;
+  }
+
+  render() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        ha-card {
+          padding: 16px;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+        }
+      </style>
+      <ha-card header="SpoolmanSync AMS">
+        <div class="grid"></div>
+      </ha-card>
+    `;
+    this.content = this.shadowRoot.querySelector(".grid");
+    this.update();
+  }
+
+  update() {
+    if (!this.content || !this._config || !this._hass) return;
+
+    const entities = this._config.entities || [];
     this.content.innerHTML = "";
-
-    const grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "repeat(2, 1fr)";
-    grid.style.gap = "8px";
 
     entities.forEach(entityId => {
       const tile = document.createElement("ha-tile-card");
-      tile.hass = hass;
+      tile.hass = this._hass;
       tile.config = {
         entity: entityId,
         icon: "mdi:printer-3d-nozzle",
         color: "blue"
       };
-      grid.appendChild(tile);
+      this.content.appendChild(tile);
     });
-
-    this.content.appendChild(grid);
-  }
-
-  setConfig(config) {
-    if (!config.entities) {
-      throw new Error("You need to define entities");
-    }
-    this.config = config;
   }
 
   static getConfigElement() {
@@ -50,6 +70,11 @@ class SpoolmanSyncCard extends HTMLElement {
 customElements.define("spoolmansync-card", SpoolmanSyncCard);
 
 class SpoolmanSyncCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+  }
+
   set hass(hass) {
     this._hass = hass;
     if (!this.initialized) {
@@ -63,19 +88,25 @@ class SpoolmanSyncCardEditor extends HTMLElement {
   }
 
   render() {
-    this.innerHTML = `
+    this.shadowRoot.innerHTML = `
+      <style>
+        .card-config {
+          padding: 16px;
+        }
+        ha-textarea {
+          width: 100%;
+        }
+      </style>
       <div class="card-config">
-        <p>Select AMS Tray Entities:</p>
-        <div id="entities"></div>
+        <p>Enter AMS Tray Entity IDs (one per line):</p>
+        <ha-textarea
+          label="Entities"
+          .value="${(this._config?.entities || []).join("\n")}"
+        ></ha-textarea>
       </div>
     `;
     
-    // In a real implementation, we would use ha-entity-picker
-    // For this demo, we'll just show a text area for entity IDs
-    const container = this.querySelector("#entities");
-    const input = document.createElement("ha-textarea");
-    input.label = "Entities (one per line)";
-    input.value = (this._config.entities || []).join("\n");
+    const input = this.shadowRoot.querySelector("ha-textarea");
     input.addEventListener("change", (ev) => {
       const entities = ev.target.value.split("\n").filter(e => e.trim() !== "");
       const event = new CustomEvent("config-changed", {
@@ -85,7 +116,6 @@ class SpoolmanSyncCardEditor extends HTMLElement {
       });
       this.dispatchEvent(event);
     });
-    container.appendChild(input);
   }
 }
 
@@ -98,3 +128,9 @@ window.customCards.push({
   description: "A card to manage your SpoolmanSync AMS trays",
   preview: true,
 });
+
+console.info(
+  "%c SPOOLMANSYNC-CARD %c 1.1.8 ",
+  "color: white; background: #03a9f4; font-weight: 700;",
+  "color: #03a9f4; background: white; font-weight: 700;"
+);
