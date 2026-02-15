@@ -7,6 +7,6 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/gibz104/SpoolmanSync/issues",
   "requirements": [],
-  "version": "1.1.4",
+  "version": "1.1.5",
   "hacs": "2.0.0"
 }
