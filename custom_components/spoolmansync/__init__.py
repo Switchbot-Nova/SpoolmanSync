@@ -7,7 +7,6 @@ from homeassistant.const import CONF_URL, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.components.http import StaticPathConfig   # ← Add this import
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,19 +62,15 @@ async def async_register_custom_card(hass: HomeAssistant):
     """Register the custom card with Home Assistant."""
     www_path = hass.config.path("custom_components", DOMAIN, "www")
     if not os.path.exists(www_path):
-        _LOGGER.debug("No www directory found for spoolmansync custom card")
         return
 
-    # Use the modern async method (accepts a list of StaticPathConfig)
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(
-            url_path=f"/{DOMAIN}/local",     # e.g. /spoolmansync/local
-            path=www_path,
-            cache_headers=False               # usually False for dev/custom cards
-        )
-    ])
-
-    _LOGGER.info("Registered static path for spoolmansync custom card at /%s/local", DOMAIN)
+    # Use a versioned path to force browser cache refresh
+    version = "1.2.1"
+    hass.http.register_static_path(
+        f"/{DOMAIN}/local/{version}",
+        www_path,
+        False
+    )
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
