@@ -6,6 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.entity import DeviceInfo
 
 from . import DOMAIN
 
@@ -76,9 +77,16 @@ class SpoolmanTraySelect(CoordinatorEntity, SelectEntity):
         
         # Unique ID based on the HA entity ID of the tray
         self._attr_unique_id = f"spoolmansync_{self._tray_entity_id}"
-        self._attr_name = f"{printer_name} {ams_name} Tray {self._tray_number}"
+        self._attr_name = f"{ams_name} Tray {self._tray_number}"
         if ams_name == "External":
-             self._attr_name = f"{printer_name} External Tray"
+             self._attr_name = "External Tray"
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, printer_name)},
+            name=printer_name,
+            manufacturer="SpoolmanSync",
+            model="Bambu Lab Printer",
+        )
 
     @property
     def options(self) -> list[str]:

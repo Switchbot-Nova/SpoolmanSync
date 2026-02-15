@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_URL, Platform
@@ -50,9 +51,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Register custom card
+    await async_register_custom_card(hass)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+async def async_register_custom_card(hass: HomeAssistant):
+    """Register the custom card with Home Assistant."""
+    # This registers the www directory of the integration as a local resource
+    # accessible at /spoolmansync/local/
+    www_path = hass.config.path("custom_components", DOMAIN, "www")
+    if not os.path.exists(www_path):
+        return
+
+    hass.http.register_static_path(
+        f"/{DOMAIN}/local",
+        www_path,
+        cache_headers=False
+    )
+
+    # We can't automatically add it to the resources list via Python easily in modern HA
+    # but registering the static path makes it available.
+    # HACS usually handles the resource registration.
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""

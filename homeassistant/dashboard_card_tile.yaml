@@ -1,0 +1,24 @@
+type: grid
+columns: 2
+square: false
+cards:
+  - type: tile
+    entity: select.printer_ams_1_tray_1
+    name: Tray 1
+    icon: mdi:printer-3d-nozzle
+    color: blue
+  - type: tile
+    entity: select.printer_ams_1_tray_2
+    name: Tray 2
+    icon: mdi:printer-3d-nozzle
+    color: orange
+  - type: tile
+    entity: select.printer_ams_1_tray_3
+    name: Tray 3
+    icon: mdi:printer-3d-nozzle
+    color: green
+  - type: tile
+    entity: select.printer_ams_1_tray_4
+    name: Tray 4
+    icon: mdi:printer-3d-nozzle
+    color: purple
