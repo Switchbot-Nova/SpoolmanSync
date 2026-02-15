@@ -7,6 +7,7 @@ from homeassistant.const import CONF_URL, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.components.http import StaticPathConfig   # ← Add this import
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,23 +61,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_register_custom_card(hass: HomeAssistant):
     """Register the custom card with Home Assistant."""
-    # This registers the www directory of the integration as a local resource
-    # accessible at /spoolmansync/local/
     www_path = hass.config.path("custom_components", DOMAIN, "www")
     if not os.path.exists(www_path):
+        _LOGGER.debug("No www directory found for spoolmansync custom card")
         return
 
-    # Use the most compatible way to register static paths
-    # This works across many HA versions
-    hass.http.register_static_path(
-        f"/{DOMAIN}/local",
-        www_path,
-        False
-    )
+    # Use the modern async method (accepts a list of StaticPathConfig)
+    await hass.http.async_register_static_paths([
+        StaticPathConfig(
+            url_path=f"/{DOMAIN}/local",     # e.g. /spoolmansync/local
+            path=www_path,
+            cache_headers=False               # usually False for dev/custom cards
+        )
+    ])
 
-    # We can't automatically add it to the resources list via Python easily in modern HA
-    # but registering the static path makes it available.
-    # HACS usually handles the resource registration.
+    _LOGGER.info("Registered static path for spoolmansync custom card at /%s/local", DOMAIN)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
