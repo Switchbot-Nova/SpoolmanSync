@@ -66,11 +66,9 @@ async def async_register_custom_card(hass: HomeAssistant):
     if not os.path.exists(www_path):
         return
 
-    hass.http.register_static_path(
-        f"/{DOMAIN}/local",
-        www_path,
-        cache_headers=False
-    )
+    hass.http.async_register_static_paths([
+        hass.http.StaticPathConfig(f"/{DOMAIN}/local", www_path, False)
+    ])
 
     # We can't automatically add it to the resources list via Python easily in modern HA
     # but registering the static path makes it available.

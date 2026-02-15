@@ -4,6 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.entity import DeviceInfo
 
 from . import DOMAIN
 
@@ -58,9 +59,16 @@ class SpoolmanTraySensor(CoordinatorEntity, SensorEntity):
         self._tray_number = tray["tray_number"]
         
         self._attr_unique_id = f"spoolmansync_sensor_{self._tray_entity_id}"
-        self._attr_name = f"{printer_name} {ams_name} Tray {self._tray_number} Info"
+        self._attr_name = f"{ams_name} Tray {self._tray_number} Info"
         if ams_name == "External":
-             self._attr_name = f"{printer_name} External Tray Info"
+             self._attr_name = "External Tray Info"
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, printer_name)},
+            name=printer_name,
+            manufacturer="SpoolmanSync",
+            model="Bambu Lab Printer",
+        )
 
     @property
     def native_value(self) -> str | None:
