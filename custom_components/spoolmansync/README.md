@@ -20,3 +20,29 @@ This integration allows you to manage your Bambu Lab AMS tray assignments direct
 
 - **SpoolmanSync** must be running and accessible from Home Assistant.
 - **ha-bambulab** integration must be installed and configured in Home Assistant (as SpoolmanSync relies on it for printer discovery).
+
+## Lovelace AMS Card
+
+A custom card is included to easily manage your AMS trays.
+
+### Installation
+
+1. Add Lovelace resource (**Settings > Dashboards > Resources > + Add Resource**):
+   **URL**: `/custom_components/spoolmansync/www/spoolmansync-card.js`
+   **Resource Type**: `JavaScript Module`
+
+**Remote Access (Nabu Casa/Cloudflare Tunnel):** If 404 error, copy `custom_components/spoolmansync/www/spoolmansync-card.js` to your HA `config/www/spoolmansync-card.js` and use **URL**: `/local/spoolmansync-card.js`
+
+2. Click **Reload Resources** (or refresh browser).
+
+### Example
+
+```yaml
+type: custom:spoolmansync-card
+tray1: select.p2s_22e8bj5b1400071_ams_1_tray_1
+tray2: select.p2s_22e8bj5b1400071_ams_1_tray_2
+tray3: select.p2s_22e8bj5b1400071_ams_1_tray_3
+tray4: select.p2s_22e8bj5b1400071_ams_1_tray_4
+```
+
+The visual editor provides entity picker dropdowns for each tray (filtered to `select` domain).

@@ -116,28 +116,28 @@ class SpoolmanSyncCardEditor extends HTMLElement {
           .hass=${this._hass}
           .value="${this._config?.tray1 || ""}"
           .label="AMS Tray 1"
-          .includeDomains='["select"]'
+          .includeDomains=${['select']}
           data-config="tray1"
         ></ha-entity-picker>
         <ha-entity-picker
           .hass=${this._hass}
           .value="${this._config?.tray2 || ""}"
           .label="AMS Tray 2"
-          .includeDomains='["select"]'
+          .includeDomains=${['select']}
           data-config="tray2"
         ></ha-entity-picker>
         <ha-entity-picker
           .hass=${this._hass}
           .value="${this._config?.tray3 || ""}"
           .label="AMS Tray 3"
-          .includeDomains='["select"]'
+          .includeDomains=${['select']}
           data-config="tray3"
         ></ha-entity-picker>
         <ha-entity-picker
           .hass=${this._hass}
           .value="${this._config?.tray4 || ""}"
           .label="AMS Tray 4"
-          .includeDomains='["select"]'
+          .includeDomains=${['select']}
           data-config="tray4"
         ></ha-entity-picker>
       </div>
