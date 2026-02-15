@@ -18,6 +18,9 @@ class SpoolmanSyncCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
+    if (this.content) {
+      this.update();
+    }
   }
 
   render() {
@@ -35,8 +38,10 @@ class SpoolmanSyncCard extends HTMLElement {
     this.update();
   }
 
-  update() {
+  async update() {
     if (!this.content || !this._config || !this._hass) return;
+
+    this.content.innerHTML = "";
 
     const trays = [
       { id: this._config.tray1, name: "Tray 1", color: "blue" },
@@ -45,21 +50,26 @@ class SpoolmanSyncCard extends HTMLElement {
       { id: this._config.tray4, name: "Tray 4", color: "purple" }
     ].filter(t => t.id && t.id !== "");
 
-    this.content.innerHTML = "";
-
-    trays.forEach(tray => {
-      const tile = document.createElement("ha-tile-card");
-      tile.hass = this._hass;
-      tile.config = {
-        entity: tray.id,
-        name: tray.name,
-        icon: "mdi:printer-3d-nozzle",
-        color: tray.color,
-        vertical: false,
-        features_position: "bottom"
-      };
-      this.content.appendChild(tile);
-    });
+    try {
+      const helpers = await window.loadCardHelpers();
+      const createCardElement = helpers.createCardElement;
+      for (const tray of trays) {
+        const tileConfig = {
+          type: "tile",
+          entity: tray.id,
+          name: tray.name,
+          icon: "mdi:printer-3d-nozzle",
+          color: tray.color,
+          vertical: false,
+          features_position: "bottom"
+        };
+        const tile = await createCardElement(tileConfig);
+        tile.hass = this._hass;
+        this.content.appendChild(tile);
+      }
+    } catch (e) {
+      console.error("Error rendering SpoolmanSync tiles:", e);
+    }
   }
 
   static getConfigElement() {
@@ -103,28 +113,28 @@ class SpoolmanSyncCardEditor extends HTMLElement {
       </style>
       <div class="card-config">
         <ha-entity-picker
-          .hass="${this._hass}"
+          .hass=${this._hass}
           .value="${this._config?.tray1 || ""}"
           .label="AMS Tray 1"
           .includeDomains='["select"]'
           data-config="tray1"
         ></ha-entity-picker>
         <ha-entity-picker
-          .hass="${this._hass}"
+          .hass=${this._hass}
           .value="${this._config?.tray2 || ""}"
           .label="AMS Tray 2"
           .includeDomains='["select"]'
           data-config="tray2"
         ></ha-entity-picker>
         <ha-entity-picker
-          .hass="${this._hass}"
+          .hass=${this._hass}
           .value="${this._config?.tray3 || ""}"
           .label="AMS Tray 3"
           .includeDomains='["select"]'
           data-config="tray3"
         ></ha-entity-picker>
         <ha-entity-picker
-          .hass="${this._hass}"
+          .hass=${this._hass}
           .value="${this._config?.tray4 || ""}"
           .label="AMS Tray 4"
           .includeDomains='["select"]'
@@ -159,7 +169,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c SPOOLMANSYNC-CARD %c 1.2.0 ",
+  "%c SPOOLMANSYNC-CARD %c 1.2.3 ",
   "color: white; background: #03a9f4; font-weight: 700;",
   "color: #03a9f4; background: white; font-weight: 700;"
 );
